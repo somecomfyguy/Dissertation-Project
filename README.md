@@ -1,1 +1,1 @@
-# Dissertation-Project-Detection-and-Classification-of-GALILEO-interferences
+# Dissertation-Project-Detection-and-Classification-of-GNSS-interferences
