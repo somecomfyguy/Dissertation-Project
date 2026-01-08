@@ -1,1 +1,45 @@
+Articles:
+. J. Zidan, E. I. Adegoke, E. Kampert, S. A. Birrell, C. R. Ford and M. D. Higgins, "GNSS Vulnerabilities and Existing Solutions: A Review of the Literature," in IEEE Access, vol. 9, pp. 153960-153976, 2021, doi: 10.1109/ACCESS.2020.2973759.
+. Z. Wu, Y. Zhang, Y. Yang, C. Liang and R. Liu, "Spoofing and Anti-Spoofing Technologies of Global Navigation Satellite System: A Survey," in IEEE Access, vol. 8, pp. 165444-165496, 2020, doi: 10.1109/ACCESS.2020.3022294. 
+. Meng, L.; Yang, L.; Yang, W.; Zhang, L. A Survey of GNSS Spoofing and Anti-Spoofing Technology. Remote Sens. 2022, 14, 4826. https://doi.org/10.3390/rs14194826 
+. C. Fernández-Prades, J. Arribas and P. Closas, "Robust GNSS Receivers by Array Signal Processing: Theory and Implementation," in Proceedings of the IEEE, vol. 104, no. 6, pp. 1207-1220, June 2016, doi: 10.1109/JPROC.2016.2532963.
+. M. L. Psiaki and T. E. Humphreys, "GNSS Spoofing and Detection," in Proceedings of the IEEE, vol. 104, no. 6, pp. 1258-1270, June 2016, doi: 10.1109/JPROC.2016.2526658
+. R. T. Ioannides, T. Pany and G. Gibbons, "Known Vulnerabilities of Global Navigation Satellite Systems, Status, and Potential Mitigation Techniques," in Proceedings of the IEEE, vol. 104, no. 6, pp. 1174-1194, June 2016, doi: 10.1109/JPROC.2016.2535898
+. G. X. Gao, M. Sgammini, M. Lu and N. Kubo, "Protecting GNSS Receivers From Jamming and Interference," in Proceedings of the IEEE, vol. 104, no. 6, pp. 1327-1338, June 2016, doi: 10.1109/JPROC.2016.2525938.
+. I. E. Mehr and F. Dovis, "A Deep Neural Network Approach for Classification of GNSS Interference and Jamming," in IEEE Transactions on Aerospace and Electronic Systems, vol. 61, no. 2, pp. 1660-1676, April 2025, doi: 10.1109/TAES.2024.3462662.
+. D. Borio, F. Dovis, H. Kuusniemi and L. Lo Presti, "Impact and Detection of GNSS Jammers on Consumer Grade Satellite Navigation Receivers," in Proceedings of the IEEE, vol. 104, no. 6, pp. 1233-1245, June 2016, doi: 10.1109/JPROC.2016.2543266.
+. Yuan, M., Tang, X. & Ou, G. Authenticating GNSS civilian signals: a survey. Satell Navig 4, 6 (2023). https://doi.org/10.1186/s43020-023-00094-6
+. van der Merwe, J.R.; Contreras Franco, D.; Hansen, J.; Brieger, T.; Feigl, T.; Ott, F.; Jdidi, D.; Rügamer, A.; Felber, W. Low-Cost COTS GNSS Interference Monitoring, Detection, and Classification System. Sensors 2023, 23, 3452. https://doi.org/10.3390/s23073452 
+. https://arxiv.org/html/2409.15114v1
+. https://radionavlab.ae.utexas.edu/images/stories/files/papers/gnss_spoofing_detection.pdf
+. Radoš, K.; Brkić, M.; Begušić, D. Recent Advances on Jamming and Spoofing Detection in GNSS. Sensors 2024, 24, 4210. https://doi.org/10.3390/s24134210 
+. Morales Ferre, R.; de la Fuente, A.; Lohan, E.S. Jammer Classification in GNSS Bands Via Machine Learning Algorithms. Sensors 2019, 19, 4841. https://doi.org/10.3390/s19224841 
+. A. Elango, S. Ujan and L. Ruotsalainen, "Disruptive GNSS Signal detection and classification at different Power levels Using Advanced Deep-Learning Approach," 2022 International Conference on Localization and GNSS (ICL-GNSS), Tampere, Finland, 2022, pp. 1-7, doi: 10.1109/ICL-GNSS54081.2022.9797026.
+. G. Panice et al., "A SVM-based detection approach for GPS spoofing attacks to UAV," 2017 23rd International Conference on Automation and Computing (ICAC), Huddersfield, UK, 2017, pp. 1-11, doi: 10.23919/IConAC.2017.8081999.
+. E. Schmidt, Z. Ruble, D. Akopian and D. J. Pack, "Software-Defined Radio GNSS Instrumentation for Spoofing Mitigation: A Review and a Case Study," in IEEE Transactions on Instrumentation and Measurement, vol. 68, no. 8, pp. 2768-2784, Aug. 2019, doi: 10.1109/TIM.2018.2869261.
+. J. Li, X. Zhu, M. Ouyang, W. Li, Z. Chen and Q. Fu, "GNSS Spoofing Jamming Detection Based on Generative Adversarial Network," in IEEE Sensors Journal, vol. 21, no. 20, pp. 22823-22832, 15 Oct.15, 2021, doi: 10.1109/JSEN.2021.3105404.
+. S. Semanjski, A. Muls, I. Semanjski and W. De Wilde, "Use and Validation of Supervised Machine Learning Approach for Detection of GNSS Signal Spoofing," 2019 International Conference on Localization and GNSS (ICL-GNSS), Nuremberg, Germany, 2019, pp. 1-6, doi: 10.1109/ICL-GNSS.2019.8752775.
+. J. R. v. d. Merwe, X. Zubizarreta, I. Lukčin, A. Rügamer and W. Felber, "Classification of Spoofing Attack Types," 2018 European Navigation Conference (ENC), Gothenburg, Sweden, 2018, pp. 91-99, doi: 10.1109/EURONAV.2018.8433227.
+. A. Siemuri, K. Selvan, H. Kuusniemi, P. Valisuo and M. S. Elmusrati, "A Systematic Review of Machine Learning Techniques for GNSS Use Cases," in IEEE Transactions on Aerospace and Electronic Systems, vol. 58, no. 6, pp. 5043-5077, Dec. 2022, doi: 10.1109/TAES.2022.3219366.
+. F. Fourati and M. -S. Alouini, "Artificial intelligence for satellite communication: A review," in Intelligent and Converged Networks, vol. 2, no. 3, pp. 213-243, Sept. 2021, doi: 10.23919/ICN.2021.0015.
+. L. Junzhi, L. Wanqing, F. Qixiang and L. Beidian, "Research Progress of GNSS Spoofing and Spoofing Detection Technology," 2019 IEEE 19th International Conference on Communication Technology (ICCT), Xi'an, China, 2019, pp. 1360-1369, doi: 10.1109/ICCT46805.2019.8947107.
+. Borio, D., Gioia, C., GNSS interference mitigation: A measurement and position domain assessment. Institute of Navigation Mar 2021, 68 (1) 93- 114; DOI: 10.1002/navi.391 
+. Hamza, V., Stopar, B., Sterle, O. et al. Recent advances and applications of low-cost GNSS receivers: a review. GPS Solut 29, 56 (2025). https://doi.org/10.1007/s10291-025-01815-x
+. Xie, Y., Chen, L., Zhang, K. et al. Deep neural network based anti-jamming processing in the GNSS array receiver. GPS Solut 29, 63 (2025). https://doi.org/10.1007/s10291-025-01821-z
+. Sormayli, J., Darvishi, M., Zarrinnegar, K. et al. Real-Time jamming detection using windowing and hybrid machine learning models for pre-saturation alerts. Sci Rep 15, 24748 (2025). https://0d10rfmpr-y-https-doi-org.z.e-nformation.ro/10.1038/s41598-025-10567-0
+. Wu, C., Ji, Y. & Sun, X. Detection of GNSS spoofed signals based on the weighted moving average bias correction method. Sci Rep 15, 30988 (2025). https://0d10rfmpr-y-https-doi-org.z.e-nformation.ro/10.1038/s41598-025-16853-1
+. Reda, A., Mekkawy, T. GNSS jamming detection using attention-based mutual information feature selection. Discov Appl Sci 6, 163 (2024). https://doi.org/10.1007/s42452-024-05792-7
+. Borhani-Darian, P., Li, H., Wu, P. et al. Detecting GNSS spoofing using deep learning. EURASIP J. Adv. Signal Process. 2024, 14 (2024). https://doi.org/10.1186/s13634-023-01103-1
+. M. Jiang, Z. Ye, Y. Xiao, Y. Gao, M. Xiao and D. Niyato, "ACSNet: A Deep Neural Network for Compound GNSS Jamming Signal Classification," in IEEE Transactions on Cognitive Communications and Networking, vol. 12, pp. 1601-1615, 2026, doi: 10.1109/TCCN.2025.3607284.
+. K. Radoš, M. Brkić and D. Begušić, "GNSS Signal Classification based on Machine Learning Methods," 2024 47th MIPRO ICT and Electronics Convention (MIPRO), Opatija, Croatia, 2024, pp. 806-811, doi: 10.1109/MIPRO60963.2024.10569174.
+. Almadhor, A., Baili, J., Alsubai, S. et al. CTDNN-Spoof: compact tiny deep learning architecture for detection and multi-label classification of GPS spoofing attacks in small UAVs. Sci Rep 15, 6656 (2025). https://0d10rfmpr-y-https-doi-org.z.e-nformation.ro/10.1038/s41598-025-90809-3
+. Zanjani, M.M.N., Sedighy, S.H. Hybrid CNN architectures for detecting and classification of GNSS jamming attacks. GPS Solut 29, 115 (2025). https://doi.org/10.1007/s10291-025-01859-z
+. https://www.mdpi.com/2673-4591/88/1/51
+. https://scispace.com/pdf/embedded-deep-neural-network-processing-algorithmic-and-362eg9uogf.pdf
+. https://pubmed.ncbi.nlm.nih.gov/35744466/
 
+
+Datasets:
+1. https://github.com/nlsfi/FGI-GSRx
+2. Xiaoyan Wang, Jingjing Yang, Ming Huang, Zixiao Peng, GNSS interference and spoofing dataset, Data in Brief, Volume 54, 2024, https://doi.org/10.1016/j.dib.2024.110302.
+3. https://radionavlab.ae.utexas.edu/?option=com_content&view=article&id=289%3Atexas-spoofing-test-battery-texbat&catid=50&Itemid=27
