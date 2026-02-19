@@ -38,8 +38,29 @@ Articles:
 . https://scispace.com/pdf/embedded-deep-neural-network-processing-algorithmic-and-362eg9uogf.pdf
 . https://pubmed.ncbi.nlm.nih.gov/35744466/
 
-
 Datasets:
 1. https://github.com/nlsfi/FGI-GSRx
 2. Xiaoyan Wang, Jingjing Yang, Ming Huang, Zixiao Peng, GNSS interference and spoofing dataset, Data in Brief, Volume 54, 2024, https://doi.org/10.1016/j.dib.2024.110302.
 3. https://radionavlab.ae.utexas.edu/?option=com_content&view=article&id=289%3Atexas-spoofing-test-battery-texbat&catid=50&Itemid=27
+
+Articles (web-of-science)
+. Recent Advances on Jamming and Spoofing Detection in GNSS
+. Artificial Neural Networks for Navigation Systems: A Review of Recent Research
+. Detection and Classification of GNSS Jammers Using Convolutional Neural Networks
+. Disruptive GNSS Signal detection and classification at different Power levels Using Advanced Deep-Learning Approach
+. Jammer Classification in GNSS Bands Via Machine Learning Algorithms
+. A Machine Learning GNSS Interference Detection Method based on ADS-B Multi-index Features
+. Low-cost COTS GNSS interference detection and classification platform: Initial results
+. Using the Swedish CORS Network SWEPOS for GNSS Interference Detection
+. GNSS Interference Detection, Classification and Localization using Software-Defined Radio
+. An Attention-Based Convolutional Network Framework for Detection and Localization of GNSS Interference Sources
+. Pre- and Post-Correlation GNSS Interference Detection within Software Defined Radio
+. Low-Cost COTS GNSS Interference Monitoring, Detection, and Classification System
+. A Novel GNSS Sweep Interference Detection and Mitigation Method Based on RadonWigner Transform
+. Machine Learning Detection and Classification of Internal Radio Frequency Interference in Spire Global GNSS-RO Signals
+. Evaluating ML Robustness in GNSS Interference Classification, Characterization & Localization
+. GLRT-Based Spacetime Detection Algorithms Via Joint DoA and Doppler Shift Method for GNSS Spoofing Interference
+. A survey of GNSS interference monitoring technologies
+. GNSS spoofing detection based on lightweight features and CGAN-ANN in unknown scenarios
+. GNSS interference detection: Methodology utilising ADS-B NACp indicator and GPS almanac data
+. A New GNSS Interference Detection Method Based on Rearranged Wavelet-Hough Transform
