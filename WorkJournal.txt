@@ -1,7 +1,7 @@
-03.01.2026: Began work on dissertation thessis
-06.01.2026: First batch of articles
-08.01.2026: Second pass at articles sources
-17-18.01.2026: Third pass at scientific articles in preparation
+03.02.2026: Began work on dissertation thessis
+06.02.2026: First batch of articles
+08.02.2026: Second pass at articles sources
+17-18.02.2026: Third pass at scientific articles in preparation
 
 27.02-01.03.2026 - Establishing project scope and asses technical aspects:
 
@@ -9,4 +9,4 @@ Datasets:
 FGI-SpoofRepo = I/Q in L1 C/A, E1, L5, E5a, clases = synchronus, asynchronus, meaconing categories)
 FGI-JammerTest2023 = Spoofing (L1, E1), classes = incoherent, coherenet + Jamming (high power)
 FGI-OSNMA = I/Q clear sky (L1, E1) + FGI-JammerTest2023
-Texbat = I/Q in L1 C/A, classes = Static/Dynamic Switch, Static/Seamless Static Overpowered Time Push, Static/Dynamic Matched-Power Time Push, Static Matched-Power Position Push, Zero-Delay SCER
+Conclusion: 
