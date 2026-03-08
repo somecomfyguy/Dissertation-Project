@@ -3,10 +3,13 @@
 08.02.2026: Second pass at articles sources
 17-18.02.2026: Third pass at scientific articles in preparation
 
-27.02-01.03.2026 - Establishing project scope and asses technical aspects:
+27.02-04.03.2026 - Establishing project scope and asses technical aspects:
 
 Datasets:
-FGI-SpoofRepo = I/Q in L1 C/A, E1, L5, E5a, clases = synchronus, asynchronus, meaconing categories)
-FGI-JammerTest2023 = Spoofing (L1, E1), classes = incoherent, coherenet + Jamming (high power)
-FGI-OSNMA = I/Q clear sky (L1, E1) + FGI-JammerTest2023
-Conclusion: 
+Swinney+OAKBAT for initial prototyping stage
+FGI-Spoof+DARCY-Highway/FGI-SDJR for cross-validation on unseen Datasets
+
+Architectures:
+ResNet18, MobileNetv2/v3, SVM, RF, custom architecure, possibly GAN?
+
+06-13.03.2026 - Protyping using ResNet18 on Swinney+OAKBAT
