@@ -1,2 +1,7 @@
 OakbatSpoofing/
 SwinneyJamming/
+scripts/
+docs/
+modules/__pycache__/
+combined_spectrograms/
+Output/

@@ -477,7 +477,7 @@ def save_dataset(splits: dict[str, list[Segment]],
 # ---------------------------------------------------------------------------
 # Full pipeline
 # ---------------------------------------------------------------------------
-def run_pipeline(oakbat_dir: str, output_dir: str,
+def run_oakbat_pipeline(oakbat_dir: str, output_dir: str,
                  constellations: list[str] = ["gps", "galileo"],
                  window_duration_s: float = 0.02,
                  overlap: float = 0.0,
@@ -589,7 +589,7 @@ def run_pipeline(oakbat_dir: str, output_dir: str,
                  normalizer, save_format)
 
     print("\n" + "=" * 60)
-    print("Pipeline complete!")
+    print("OAKTABT Pipeline complete!")
     print("=" * 60)
 
 
@@ -636,7 +636,7 @@ if __name__ == "__main__":
         output_size=(args.output_size, args.output_size),
     )
 
-    run_pipeline(
+    run_oakbat_pipeline(
         oakbat_dir=args.oakbat_dir,
         output_dir=args.output_dir,
         constellations=args.constellations,

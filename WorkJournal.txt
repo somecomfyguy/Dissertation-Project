@@ -12,4 +12,8 @@ FGI-Spoof+DARCY-Highway/FGI-SDJR for cross-validation on unseen Datasets
 Architectures:
 ResNet18, MobileNetv2/v3, SVM, RF, custom architecure, possibly GAN?
 
-06-13.03.2026 - Protyping using ResNet18 on Swinney+OAKBAT
+06-22.03.2026 - Protyping using ResNet18 on Swinney+OAKBAT
+    - very good results obtained for jamming, less so for spoofing, which i expected
+    - I need to tune the performance metrics a bit and make it more network agnostic 
+    - technically I have a working prototype, I can begin writting
+    
