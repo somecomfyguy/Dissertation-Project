@@ -1,7 +1,8 @@
-OakbatSpoofing/
-SwinneyJamming/
 scripts/
 docs/
 modules/__pycache__/
+modules/dataset_module/datasets/
 combined_spectrograms/
 Output/
+modules/dataset_module/deprecated/
+modules/nn_module/deprecated/

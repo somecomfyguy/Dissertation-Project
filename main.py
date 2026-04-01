@@ -1,10 +1,10 @@
 # from modules import dataset_module
-from modules.dataset_module  import (
+from modules.dataset_module.deprecated.dataset_module  import (
     scan_oakbat_segments, scan_swinney_segments,
     create_splits, compute_joint_normalization,
     save_dataset_streaming, STFTParams, SAMPLE_RATE,
 )
-from modules.nn_module import *
+from modules.nn_module.deprecated.nn_module import *
 
 
 OAKBAT_DATASET_PATH = "OakbatSpoofing"
