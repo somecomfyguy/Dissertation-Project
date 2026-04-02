@@ -6,6 +6,9 @@ from scipy.stats import kurtosis as scipy_kurtosis, skew as scipy_skew
 import json
 from typing import Optional
 
+# Number of features produced by compute_features()
+N_FEATURES = 8
+
 # Sample rate
 SAMPLE_RATE = 5e6  # 5 MHz
 
