@@ -1,13 +1,11 @@
 """
 Main function for neural network module
 """
-import json
 import os
-import time
-from pathlib import Path
-
 import numpy as np
-import torch
+from torch.utils.data import DataLoader
+from torchvision import models
+from torch import no_grad
 import matplotlib
 matplotlib.use("Agg")  # Non-interactive backend
 import matplotlib.pyplot as plt
@@ -16,11 +14,16 @@ from sklearn.metrics import (
     classification_report,
     ConfusionMatrixDisplay,
 )
-
 from resnet18_init import build_resnet18
 
 
-def train_one_epoch(model, dataloader, criterion, optimizer, device):
+def train_one_epoch(
+    model: models, 
+    dataloader: DataLoader, 
+    criterion, 
+    optimizer, 
+    device
+):
     """
     Train the model for one epoch. 
 
@@ -54,8 +57,15 @@ def train_one_epoch(model, dataloader, criterion, optimizer, device):
     return average_loss, accuracy
 
 
-def evaluate(model, dataloader, criterion, device):
-    """Evaluate on a dataset. Returns average loss, accuracy, all preds and labels."""
+def evaluate(
+    model, 
+    dataloader, 
+    criterion, 
+    device
+):
+    """
+    Evaluate on a dataset. Returns average loss, accuracy, all preds and labels.
+    """
     model.eval()
     running_loss = 0.0
     correct = 0
@@ -63,7 +73,7 @@ def evaluate(model, dataloader, criterion, device):
     all_preds = []
     all_labels = []
  
-    with torch.no_grad():
+    with no_grad():
         for inputs, labels in dataloader:
             inputs = inputs.to(device)
             labels = labels.to(device)

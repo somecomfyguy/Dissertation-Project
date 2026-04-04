@@ -14,11 +14,13 @@ def build_resnet18(num_classes: int, freeze_backbone: bool = True):
         freeze_backbone:  If True, freeze all layers except the final FC.
                           Set to False for full fine-tuning.
     """
+    # Init model
     model = models.resnet18(weights=models.ResNet18_Weights.IMAGENET1K_V1)
  
-    if freeze_backbone:
+    # Autograd doesn't begin recording opperations
+    if freeze_backbone:                     
         for param in model.parameters():
-            param.requires_grad = False
+            param.requires_grad = False  
  
     # Replace classifier head
     in_features = model.fc.in_features
@@ -30,3 +32,8 @@ def build_resnet18(num_classes: int, freeze_backbone: bool = True):
     print(f"  ResNet-18: {total:,} total params, {trainable:,} trainable")
  
     return model
+
+if __name__ == "__main__":
+    # Sanity check to make sure model is initiallised correctly
+    model = build_resnet18(10)
+    print(model)
