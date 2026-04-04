@@ -7,24 +7,17 @@ Pass 1: Stream files -> Compute spectrograms -> Accumulate normalizer stats
          (one file at a time, IQ discarded after spectrogram computation)
 Pass 2: Stream files again -> Compute spectrograms -> normalize -> Save to disk
 
-Additonally:
-- Segment dataclass gains an optional `features` field (float32 array, shape (8,))
-    - New: compute_features(iq, fs) — extracts 8 statistical + CAF features from
-      raw IQ without requiring a software receiver
-    - New: FeatureNormalizer — mirrors SpectrogramNormalizer for the feature vector,
-      so features can be z-score normalized using training set statistics
-    - compute_spectrogram() is unchanged; features are computed in a separate pass
-      so no existing call sites break
-
-Feature vector layout (8 elements, all float32):
-    [0] mean_power          — mean |IQ|², proxy for received signal level
-    [1] papr                — peak-to-average power ratio, sensitive to overpowered spoofing
-    [2] spectral_kurtosis   — kurtosis of PSD; deviates from 3 under jamming/spoofing
-    [3] spectral_skewness   — skewness of PSD; asymmetric energy distribution
-    [4] spectral_flatness   — geometric/arithmetic mean of PSD; low = structured signal
-    [5] spectral_entropy    — Shannon entropy of normalised PSD; drops under coherent RFI
-    [6] inst_bandwidth      — 90%-power spectral bandwidth as fraction of Nyquist
-    [7] caf_peak_ratio      — normalised secondary autocorrelation peak; elevated when
+Additionally, there is a feature extraction process done for improving results 
+in the case of spoofing, the features are assembled as a vector of floating-point
+values, those being:
+    1. Mean_power          — mean |IQ|², proxy for received signal level
+    2. PAPR                — peak-to-average power ratio, sensitive to overpowered spoofing
+    3. Spectral_kurtosis   — kurtosis of PSD; deviates from [3] under jamming/spoofing
+    4. Spectral_skewness   — skewness of PSD; asymmetric energy distribution
+    5. Spectral_flatness   — geometric/arithmetic mean of PSD; low = structured signal
+    6. Spectral_entropy    — Shannon entropy of normalised PSD; drops under coherent RFI
+    7. Inst_bandwidth      — 90%-power spectral bandwidth as fraction of Nyquist
+    8. Caf_peak_ratio      — normalised secondary autocorrelation peak; elevated when
                               a second signal overlaps (spoofing indicator)
 
 Literature support:
@@ -43,11 +36,7 @@ Literature support:
 from datasets.OakbatSpoofing import *
 from datasets.SwinneyJamming import *
 from feature_extraction import *
-
-import os
-from pathlib import Path
 from dataclasses import dataclass, field
-
 import json
 import numpy as np
 from scipy.signal import stft
@@ -59,9 +48,6 @@ N_FEATURES = 8
 # Sample rate
 SAMPLE_RATE = 5e6  # 5 MHz
 
-# ---------------------------------------------------------------------------
-# Segment dataclass
-# ---------------------------------------------------------------------------
 @dataclass
 class Segment:
     data: np.ndarray          # Complex IQ samples (complex64)
@@ -75,15 +61,12 @@ class Segment:
     # None means features have not been computed yet — existing code that
     # does not use features is unaffected.
 
-# ---------------------------------------------------------------------------
-# STFT spectrogram
-# ---------------------------------------------------------------------------
 @dataclass
 class STFTParams:
     """STFT configuration — must match between training and inference."""
     nperseg:     int   = 256
     noverlap:    int   = 192        # 75% overlap
-    window:      str   = "hann"
+    window:      str   = "hann"     # Hann windowing
     output_size: tuple = (128, 128)
     log_scale:   bool  = True
     epsilon:     float = 1e-10
