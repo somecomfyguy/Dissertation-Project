@@ -7,16 +7,13 @@ import os
 
 import numpy as np
 import matplotlib
-matplotlib.use("Agg")   # Non-interactive backend
+matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 from sklearn.metrics import confusion_matrix, classification_report, ConfusionMatrixDisplay
 import torch
 import torch.nn as nn
 from torch import no_grad
 from torch.utils.data import DataLoader
-from torchvision import models
-
-from resnet18_init import build_resnet18
 
 
 def train_one_epoch(

@@ -1,39 +1,49 @@
-
+"""
+Shared type definitions for the GNSS interference classification pipeline.
+"""
 from dataclasses import dataclass, field
 from typing import Optional
 import numpy as np
+
 
 # Constants
 N_FEATURES:  int   = 8     # Length of the feature vector from compute_features()
 SAMPLE_RATE: float = 5e6   # 5 MHz — shared sampling frequency for both datasets
 
+
 @dataclass
 class Segment:
     """
-    A labelled IQ window with an optional pre-computed feature vector.
+    A labelled IQ window with enough metadata for both the in-memory and
+    streaming pipeline paths.
 
-    Used in the non-streaming (in-memory) path. In the streaming pipeline,
-    the lighter SegmentMeta is used during scanning and the IQ is read
-    on demand via read_segment_iq().
+    In the in-memory path, `data` holds the IQ samples directly.
+    In the streaming path, `data` is None and the IQ is read on demand
+    via read_segment_iq() using source_file + start_sample + num_samples.
 
     Attributes:
         data:         Complex IQ samples, shape (num_samples,), dtype complex64.
+                      None in the streaming (metadata-only) path.
         label:        Unified class label string (e.g. 'clean', 'jam_chirp').
         source_file:  Path to the originating .bin or .mat file.
         scenario:     Scenario identifier (e.g. 'ds1', 'swinney_training').
         start_sample: Sample offset within the source file. Always 0 for
                       Swinney (whole-file segments).
+        num_samples:  Window length in samples. 0 for Swinney (read full file).
         is_spoofed:   True for OAKBAT post-onset windows; False otherwise.
+        dataset:      Origin dataset identifier ('oakbat' or 'swinney').
+                      Used by read_segment_iq() to dispatch to the correct reader.
         features:     8-element float32 feature vector from compute_features().
-                      None until explicitly computed — callers that do not
-                      use features are unaffected.
+                      None until explicitly computed.
     """
-    data:         np.ndarray
+    data:         Optional[np.ndarray]
     label:        str
     source_file:  str
     scenario:     str
     start_sample: int
+    num_samples:  int
     is_spoofed:   bool
+    dataset:      str
     features:     Optional[np.ndarray] = field(default=None)
 
 

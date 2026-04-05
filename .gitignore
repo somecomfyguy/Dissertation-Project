@@ -1,9 +1,11 @@
 scripts/
 docs/
 modules/__pycache__/
-modules/dataset_module/datasets/
-combined_spectrograms/
-Output/
+modules/common/__pycache__
 modules/dataset_module/deprecated/
+modules/dataset_module/datasets/
+modules/dataset_module/__pycache__
 modules/nn_module/deprecated/
+modules/nn_module/__pycache__
+Output/combined_spectrograms/
 venv/

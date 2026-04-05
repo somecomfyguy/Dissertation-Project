@@ -22,10 +22,7 @@ from typing import Optional
 import numpy as np
 from scipy.stats import kurtosis as scipy_kurtosis, skew as scipy_skew
 
-# Number of features in the vector produced by compute_features().
-N_FEATURES: int = 8
-
-SAMPLE_RATE: float = 5e6   # 5 MHz default; passed explicitly where needed
+from modules.common.types import N_FEATURES, SAMPLE_RATE
 
 
 # Internal helpers: PSD and CAF Ratio

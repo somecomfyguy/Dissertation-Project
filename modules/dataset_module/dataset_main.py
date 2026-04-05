@@ -39,17 +39,40 @@ Class taxonomy (12 classes total):
                         spoof_matched_time, spoof_matched_dynamic,
                         spoof_position_push, spoof_dynamic_position
 """
-
-from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Optional
 import json
+
 import numpy as np
 
-from process_oakbat import *
-from process_swinney import *
-from modules.common.spectrogram import *
+from modules.common.types import Segment, STFTParams, SAMPLE_RATE
+from modules.common.spectrogram import compute_spectrogram, SpectrogramNormalizer
+from modules.dataset_module.process_oakbat import read_oakbat_chunk
+from modules.dataset_module.process_swinney import read_swinney_file
 
+
+# Read IQ segment
+def read_segment_iq(meta: Segment) -> np.ndarray:
+    """
+    Load the IQ data for a segment from disk, dispatching to the correct
+    reader based on the originating dataset.
+
+    Args:
+        meta: A Segment (or SegmentMeta) object with at least source_file
+              and dataset fields populated.
+
+    Returns:
+        Complex64 numpy array of shape (num_samples,) for OAKBAT, or the
+        full-file IQ array for Swinney (whole-file segments).
+    """
+    if meta.dataset == "oakbat":
+        return read_oakbat_chunk(meta.source_file, meta.start_sample,
+                                meta.num_samples)
+    elif meta.dataset == "swinney":
+        return read_swinney_file(meta.source_file)
+    else:
+        raise ValueError(f"Unknown dataset: {meta.dataset}")
+ 
 
 # Splitting dataset
 def create_splits(segments: list[Segment],
@@ -127,32 +150,13 @@ def create_splits(segments: list[Segment],
     return splits
 
 
-def read_segment_iq(meta: Segment) -> np.ndarray:
-    """
-    Load the IQ data for a segment from disk, dispatching to the correct
-    reader based on the originating dataset.
-
-    Args:
-        meta: A Segment (or SegmentMeta) object with at least source_file
-              and dataset fields populated.
-
-    Returns:
-        Complex64 numpy array of shape (num_samples,) for OAKBAT, or the
-        full-file IQ array for Swinney (whole-file segments).
-    """
-    if meta.dataset == "oakbat":
-        return read_oakbat_chunk(meta.source_file, meta.start_sample,
-                                 meta.num_samples)
-    else:  # swinney
-        return read_swinney_file(meta.source_file)
-
-
+# Streaming save
 def save_dataset_streaming(splits: dict,
-                            output_dir: str,
-                            fs: float,
-                            stft_params: STFTParams,
-                            normalizer: SpectrogramNormalizer,
-                            save_format: str = "npy") -> None:
+                           output_dir: str,
+                           fs: float,
+                           stft_params: STFTParams,
+                           normalizer: SpectrogramNormalizer,
+                           save_format: str = "npy") -> None:
     """
     Stream all splits to disk as normalised spectrograms, one segment at a
     time.
@@ -221,8 +225,9 @@ def save_dataset_streaming(splits: dict,
     normalizer.save(str(out / "normalization_stats.json"))
     print(f"\n[Save] Dataset written to {out}")
 
+
 # Normalization helpers
-def compute_normalization_streaming(segments: list,
+def compute_normalization_streaming(segments: list[Segment],
                                     fs: float,
                                     stft_params: STFTParams,
                                     ) -> SpectrogramNormalizer:
@@ -259,8 +264,8 @@ def compute_normalization_streaming(segments: list,
     return normalizer
 
 
-def compute_joint_normalization(oakbat_train_meta: list,
-                                swinney_train_meta: list,
+def compute_joint_normalization(oakbat_train: list[Segment],
+                                swinney_train: list[Segment],
                                 stft_params: STFTParams,
                                 fs: float = SAMPLE_RATE,
                                 output_path: Optional[str] = None,
@@ -286,9 +291,9 @@ def compute_joint_normalization(oakbat_train_meta: list,
     Returns:
         Fitted SpectrogramNormalizer covering both datasets.
     """
-    combined = oakbat_train_meta + swinney_train_meta
+    combined = oakbat_train + swinney_train
     print(f"[JointNorm] Computing stats across {len(combined)} segments "
-          f"({len(oakbat_train_meta)} OAKBAT + {len(swinney_train_meta)} Swinney)")
+          f"({len(oakbat_train)} OAKBAT + {len(swinney_train)} Swinney)")
 
     normalizer = compute_normalization_streaming(combined, fs, stft_params)
 

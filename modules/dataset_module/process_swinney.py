@@ -30,9 +30,9 @@ Expected directory layout:
 
 from scipy.io import loadmat
 import numpy as np
-from dataclasses import dataclass, field
 from pathlib import Path
-from common.types import *
+
+from modules.common.types import Segment
 
 
 # Maps Swinney directory names to the unified project class labels.
@@ -98,19 +98,17 @@ def load_swinney_segments(swinney_dir: str,
         for mat_path in mat_files:
             mat_data = loadmat(str(mat_path))
 
-            # Resolve the IQ variable — use the known name or fall back.
             if mat_var_name not in mat_data:
                 data_keys = [k for k in mat_data if not k.startswith("__")]
                 if len(data_keys) == 1:
                     iq = mat_data[data_keys[0]].squeeze()
                 else:
-                    print(f"  [WARN] Unexpected keys in {mat_path.name}, skipping. "
-                          f"Keys: {data_keys}")
+                    print(f"  [WARN] Unexpected keys in {mat_path.name}, "
+                          f"skipping. Keys: {data_keys}")
                     continue
             else:
                 iq = mat_data[mat_var_name].squeeze()
 
-            # Ensure complex dtype — some exports store as (N, 2) real array.
             if not np.iscomplexobj(iq):
                 if iq.ndim == 2 and iq.shape[1] == 2:
                     iq = iq[:, 0] + 1j * iq[:, 1]
@@ -120,10 +118,12 @@ def load_swinney_segments(swinney_dir: str,
             segments.append(Segment(
                 data=iq.astype(np.complex64),
                 label=unified_label,
-                source_file=mat_path.name,
+                source_file=str(mat_path),
                 scenario=f"swinney_{split}",
                 start_sample=0,
+                num_samples=0,       # 0 = read full file
                 is_spoofed=False,
+                dataset="swinney",
             ))
             loaded += 1
 

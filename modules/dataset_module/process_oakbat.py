@@ -19,9 +19,10 @@ Expected directory layout:
 import os
 from pathlib import Path
 from typing import Optional
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 import numpy as np
-from common.types import *
+
+from modules.common.types import Segment, SAMPLE_RATE
 
 # Relative paths to GPS and Galileo subdirectories within the dataset root.
 # These are used to build per-scenario file paths in SCENARIOS_GPS/GALILEO.
@@ -102,36 +103,19 @@ def segment_signal(signal: np.ndarray, scenario: OakbatScenario,
                    overlap_s: float = 0.0,
                    clean_label: str = "clean") -> list[Segment]:
     """
-    Slice a full OAKBAT recording into fixed-length labelled windows.\n
-    Each window is labelled according to its position relative to the
-    spoofing onset time:
-    - Entirely before onset => label = clean_label, is_spoofed = False
-    - Entirely after onset => label = scenario.spoof_class, is_spoofed = True
-    - Straddles the boundary => discarded to avoid ambiguous labels
+    Slice a full OAKBAT recording into fixed-length labelled windows.
 
-    Args:
-        signal: Complex IQ array of the full recording.
-        scenario: OakbatScenario providing onset_time and spoof_class.
-        fs: Sampling frequency in Hz.
-        segment_length_s: Window duration in seconds (default: 20 ms).
-        overlap_s: Fractional overlap between consecutive windows, 
-            in [0.0, 1.0). 0.0 means no overlap (hop = window).
-        clean_label: Label string assigned to pre-onset windows.
-
-    Returns:
-        List of Segment objects with IQ data and labels populated.
-        The features field is left as None; call compute_features() separately.
+    Windows straddling the spoofing onset boundary are discarded.
     """
     window_samples = int(segment_length_s * fs)
-    hop_samples = int(window_samples * (1 - overlap_s))
-    onset_sample = int(scenario.onset_time * fs)
+    hop_samples    = int(window_samples * (1 - overlap_s))
+    onset_sample   = int(scenario.onset_time * fs)
 
     segments: list[Segment] = []
     start = 0
 
     while start + window_samples <= len(signal):
-        end   = start + window_samples
-        chunk = signal[start:end]
+        end = start + window_samples
 
         if end <= onset_sample:
             label      = clean_label
@@ -140,21 +124,23 @@ def segment_signal(signal: np.ndarray, scenario: OakbatScenario,
             label      = scenario.spoof_class
             is_spoofed = True
         else:
-            # Window straddles the onset boundary, will be skipped
             start += hop_samples
             continue
 
         segments.append(Segment(
-            data=chunk,
+            data=signal[start:end],
             label=label,
             source_file=scenario.data_path,
             scenario=scenario.scenario,
             start_sample=start,
+            num_samples=window_samples,
             is_spoofed=is_spoofed,
+            dataset="oakbat",
         ))
         start += hop_samples
 
     return segments
+
 
 def read_oakbat_chunk(filepath: str, start_sample: int,
                       num_samples: int) -> np.ndarray:
@@ -175,8 +161,8 @@ def read_oakbat_chunk(filepath: str, start_sample: int,
         Complex64 numpy array of shape (num_samples,).
     """
     # Each complex sample = 2 × int16 = 4 bytes total.
-    offset_bytes = start_sample * 4     # 2 components × 2 bytes each
-    count        = num_samples * 2      # number of int16 values to read
+    offset_bytes = start_sample * 4
+    count        = num_samples * 2
 
     with open(filepath, "rb") as f:
         f.seek(offset_bytes)

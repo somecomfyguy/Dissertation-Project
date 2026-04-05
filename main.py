@@ -1,109 +1,114 @@
-# from modules import dataset_module
-from modules.dataset_module.deprecated.dataset_module  import (
-    scan_oakbat_segments, scan_swinney_segments,
-    create_splits, compute_joint_normalization,
-    save_dataset_streaming, STFTParams, SAMPLE_RATE,
-)
-from modules.nn_module.deprecated.nn_module import *
+"""
+GNSS Interference Classification — Main Pipeline
 
+Usage:
+    python main.py                          # full pipeline (prepare + train)
+    python main.py --skip-prepare           # train only (spectrograms exist)
+    python main.py --prepare-only           # prepare only (no training)
+"""
+
+import os
+import json
+import time
+import argparse
+from pathlib import Path
+
+import numpy as np
+import torch
 import torch.nn as nn
 import torch.optim as optim
-from torch.utils.data import Dataset, DataLoader
+from torch.utils.data import DataLoader
+from sklearn.metrics import classification_report
+
+# Project modules
+from modules.common.types import STFTParams, SAMPLE_RATE
+from modules.common.spectrogram import SpectrogramNormalizer
+
+from modules.dataset_module.process_oakbat import (
+    load_oakbat_iq, segment_signal, ALL_SCENARIOS,
+)
+from modules.dataset_module.process_swinney import load_swinney_segments
+from modules.dataset_module.dataset_main import (
+    create_splits, compute_joint_normalization, save_dataset_streaming,
+)
+
+from modules.nn_module.nn_main import (
+    train_one_epoch, evaluate, plot_training_curves, plot_confusion_matrix,
+)
+from modules.nn_module.resnet18_init import build_resnet18
+from modules.nn_module.dataset import SpectrogramDataset
+
+# Paths
+OAKBAT_DATASET_PATH  = "OakbatSpoofing"
+SWINNEY_DATASET_PATH = "SwinneyJamming"
+SPECTROGRAM_DIR      = "./combined_spectrograms"
+OUTPUT_DIR           = "./Output"
 
 
-OAKBAT_DATASET_PATH = "OakbatSpoofing"
-SWINNEY_DATASET_PATH = "SwinneySpoofing"
-
-
-class SpectrogramDataset(Dataset):
+# Prepare dataset
+def prepare_datasets(oakbat_dir: str = OAKBAT_DATASET_PATH,
+                     swinney_dir: str = SWINNEY_DATASET_PATH,
+                     output_dir: str = SPECTROGRAM_DIR,
+                     max_per_class: int = 1000):
     """
-    Loads pre-computed .npy spectrograms from a split directory.
- 
-    Each spectrogram is a 128x128 float32 array (single-channel).
-    ResNet-18 expects 3-channel input, so we replicate across channels.
+    Load raw IQ from both datasets, segment, split, normalize, and save
+    spectrograms to disk.
     """
- 
-    def __init__(self, split_dir: str, class_to_idx: dict = None):
-        """
-        Args:
-            split_dir:     Path to train/, val/, or test/ directory
-            class_to_idx:  Optional pre-defined label mapping. If None,
-                           labels are inferred from subdirectory names
-                           (sorted alphabetically for reproducibility).
-        """
-        self.samples = []  # List of (filepath, class_index)
-        split_path = Path(split_dir)
- 
-        # Discover classes from subdirectories
-        class_dirs = sorted([
-            d for d in split_path.iterdir() if d.is_dir()
-        ])
- 
-        if class_to_idx is None:
-            self.class_to_idx = {d.name: i for i, d in enumerate(class_dirs)}
-        else:
-            self.class_to_idx = class_to_idx
- 
-        self.idx_to_class = {v: k for k, v in self.class_to_idx.items()}
-        self.num_classes = len(self.class_to_idx)
- 
-        # Collect all .npy files
-        for class_dir in class_dirs:
-            label = class_dir.name
-            if label not in self.class_to_idx:
-                print(f"  [WARN] Skipping unknown class dir: {label}")
-                continue
-            idx = self.class_to_idx[label]
-            for npy_file in sorted(class_dir.glob("*.npy")):
-                self.samples.append((str(npy_file), idx))
- 
-        print(f"  Loaded {len(self.samples)} samples, "
-              f"{self.num_classes} classes from {split_dir}")
- 
-    def __len__(self):
-        return len(self.samples)
- 
-    def __getitem__(self, index):
-        filepath, label = self.samples[index]
-        spec = np.load(filepath).astype(np.float32)
- 
-        # Shape: (128, 128) → (3, 128, 128) for ResNet
-        # Replicate single channel across RGB
-        tensor = torch.from_numpy(spec).unsqueeze(0).expand(3, -1, -1)
- 
-        return tensor, label
-
-
-def prepare_datasets():
     stft_params = STFTParams()
 
-    # Step 1: Scan (metadata only, no IQ loaded)
-    oakbat_meta = scan_oakbat_segments("OakbatSpoofing", 
-                                        constellations=["gps", "galileo"])
-    swinney_meta = scan_swinney_segments("SwinneyJamming", "Training")
-    swinney_meta += scan_swinney_segments("SwinneyJamming", "Testing")
+    # ── Step 1: Load and segment OAKBAT ────────────────────────────────
+    print("=" * 60)
+    print("Stage 1: Dataset Preparation")
+    print("=" * 60)
 
-    # Step 2: Combine and split
-    combined = oakbat_meta + swinney_meta
-    splits = create_splits(combined, balance_classes=True, 
-                        max_per_class=1000)
+    oakbat_segments = []
+    oakbat_path = Path(oakbat_dir)
+    for scenario in ALL_SCENARIOS:
+        filepath = oakbat_path / scenario.data_path
+        if not filepath.exists():
+            print(f"  [SKIP] {filepath} not found")
+            continue
+        print(f"  Loading {filepath.name} ({scenario.scenario})...")
+        signal = load_oakbat_iq(str(filepath))
+        segs = segment_signal(signal, scenario)
+        print(f"    → {len(segs)} segments")
+        oakbat_segments.extend(segs)
 
-    # Step 3: Joint normalization from training split only
+    # ── Step 2: Load Swinney ───────────────────────────────────────────
+    swinney_segments = []
+    for split in ["training", "testing"]:
+        try:
+            segs = load_swinney_segments(swinney_dir, split)
+            swinney_segments.extend(segs)
+        except FileNotFoundError:
+            print(f"  [Note] Swinney {split} not found, skipping")
+
+    print(f"\nTotal: {len(oakbat_segments)} OAKBAT + "
+          f"{len(swinney_segments)} Swinney segments")
+
+    # ── Step 3: Combine and split ──────────────────────────────────────
+    combined = oakbat_segments + swinney_segments
+    splits = create_splits(combined, balance_classes=True,
+                           max_per_class=max_per_class)
+
+    # ── Step 4: Joint normalization (training split only) ──────────────
+    os.makedirs(output_dir, exist_ok=True)
     normalizer = compute_joint_normalization(
         [s for s in splits["train"] if s.dataset == "oakbat"],
         [s for s in splits["train"] if s.dataset == "swinney"],
         stft_params,
-        output_path="./combined_spectrograms/normalization_stats.json",
+        output_path=os.path.join(output_dir, "normalization_stats.json"),
     )
 
-    # Step 4: Save everything with joint normalizer
-    save_dataset_streaming(splits, "./combined_spectrograms",
-                        SAMPLE_RATE, stft_params, normalizer)
+    # ── Step 5: Save spectrograms ──────────────────────────────────────
+    save_dataset_streaming(splits, output_dir, SAMPLE_RATE,
+                           stft_params, normalizer)
+    
 
-
+# Training and evaluation
 def run_training(
-    data_dir: str,
-    output_dir: str = "./results",
+    data_dir: str = SPECTROGRAM_DIR,
+    output_dir: str = OUTPUT_DIR,
     epochs: int = 20,
     batch_size: int = 32,
     lr: float = 1e-3,
@@ -113,28 +118,14 @@ def run_training(
     device_str: str = "auto",
 ):
     """
-    Full training pipeline.
- 
-    Strategy:
-        1. Train with frozen backbone for `freeze_epochs` (only FC layer)
-        2. Unfreeze and fine-tune entire network for remaining epochs at lr/10
-        3. Evaluate on test set with confusion matrix and classification report
- 
-    Args:
-        data_dir:       Root of processed spectrogram dataset
-        output_dir:     Where to save model, plots, and metrics
-        epochs:         Total training epochs
-        batch_size:     Batch size for all dataloaders
-        lr:             Initial learning rate (for frozen phase)
-        freeze_epochs:  Epochs to train with frozen backbone before unfreezing
-        weight_decay:   L2 regularization
-        num_workers:    DataLoader workers (set to 0 if you get multiprocessing errors)
-        device_str:     "auto", "cuda", "mps", or "cpu"
+    Full training pipeline with two-phase strategy:
+        1. Frozen backbone for freeze_epochs (FC head only)
+        2. Full fine-tuning for remaining epochs at lr/10
     """
     os.makedirs(output_dir, exist_ok=True)
     data_path = Path(data_dir)
- 
-    # --- Device ---
+
+    # ── Device ─────────────────────────────────────────────────────────
     if device_str == "auto":
         if torch.cuda.is_available():
             device = torch.device("cuda")
@@ -144,94 +135,84 @@ def run_training(
             device = torch.device("cpu")
     else:
         device = torch.device(device_str)
-    print(f"Using device: {device}")
- 
-    # --- Datasets ---
+    print(f"\nUsing device: {device}")
+
+    # ── Datasets ───────────────────────────────────────────────────────
     print("\nLoading datasets...")
     train_dataset = SpectrogramDataset(str(data_path / "train"))
-    class_to_idx = train_dataset.class_to_idx  # Use same mapping for all splits
- 
-    val_dataset = SpectrogramDataset(str(data_path / "val"), class_to_idx)
+    class_to_idx  = train_dataset.class_to_idx
+
+    val_dataset  = SpectrogramDataset(str(data_path / "val"),  class_to_idx)
     test_dataset = SpectrogramDataset(str(data_path / "test"), class_to_idx)
- 
+
     class_names = [train_dataset.idx_to_class[i]
                    for i in range(train_dataset.num_classes)]
     num_classes = train_dataset.num_classes
- 
+
     print(f"\nClasses ({num_classes}): {class_names}")
     print(f"Train: {len(train_dataset)}, Val: {len(val_dataset)}, "
           f"Test: {len(test_dataset)}")
- 
-    # --- DataLoaders ---
-    train_loader = DataLoader(train_dataset, batch_size=batch_size,
-                              shuffle=True, num_workers=num_workers,
-                              pin_memory=(device.type == "cuda"))
-    val_loader = DataLoader(val_dataset, batch_size=batch_size,
-                            shuffle=False, num_workers=num_workers,
-                            pin_memory=(device.type == "cuda"))
-    test_loader = DataLoader(test_dataset, batch_size=batch_size,
-                             shuffle=False, num_workers=num_workers,
-                             pin_memory=(device.type == "cuda"))
- 
-    # --- Model ---
+
+    # ── DataLoaders ────────────────────────────────────────────────────
+    loader_kwargs = dict(batch_size=batch_size, num_workers=num_workers,
+                         pin_memory=(device.type == "cuda"))
+    train_loader = DataLoader(train_dataset, shuffle=True,  **loader_kwargs)
+    val_loader   = DataLoader(val_dataset,   shuffle=False, **loader_kwargs)
+    test_loader  = DataLoader(test_dataset,  shuffle=False, **loader_kwargs)
+
+    # ── Model ──────────────────────────────────────────────────────────
     print("\nBuilding model...")
-    model = build_resnet18(num_classes, freeze_backbone=True)
-    model = model.to(device)
- 
+    model = build_resnet18(num_classes, freeze_backbone=True).to(device)
     criterion = nn.CrossEntropyLoss()
- 
-    # --- Training ---
+
+    # ── Training loop ──────────────────────────────────────────────────
     history = {"train_loss": [], "train_acc": [], "val_loss": [], "val_acc": []}
     best_val_acc = 0.0
-    best_epoch = 0
- 
+    best_epoch   = 0
+
     print(f"\n{'='*60}")
     print(f"Training: {epochs} epochs ({freeze_epochs} frozen + "
           f"{epochs - freeze_epochs} fine-tune)")
     print(f"{'='*60}")
- 
+
     for epoch in range(1, epochs + 1):
         epoch_start = time.time()
- 
-        # --- Phase transition: unfreeze backbone ---
+
         if epoch == freeze_epochs + 1:
-            print(f"\n  [Epoch {epoch}] Unfreezing backbone, reducing LR to {lr / 10:.1e}")
+            print(f"\n  [Epoch {epoch}] Unfreezing backbone, "
+                  f"LR → {lr / 10:.1e}")
             for param in model.parameters():
                 param.requires_grad = True
             optimizer = optim.Adam(model.parameters(), lr=lr / 10,
-                                   weight_decay=weight_decay)
+                                  weight_decay=weight_decay)
             scheduler = optim.lr_scheduler.CosineAnnealingLR(
                 optimizer, T_max=epochs - freeze_epochs)
         elif epoch == 1:
-            # Frozen phase: only train FC layer
             optimizer = optim.Adam(model.fc.parameters(), lr=lr,
-                                   weight_decay=weight_decay)
-            scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=3, gamma=0.5)
- 
-        # --- Train & validate ---
+                                  weight_decay=weight_decay)
+            scheduler = optim.lr_scheduler.StepLR(
+                optimizer, step_size=3, gamma=0.5)
+
         train_loss, train_acc = train_one_epoch(
             model, train_loader, criterion, optimizer, device)
         val_loss, val_acc, _, _ = evaluate(
             model, val_loader, criterion, device)
- 
         scheduler.step()
- 
+
         elapsed = time.time() - epoch_start
         history["train_loss"].append(train_loss)
         history["train_acc"].append(train_acc)
         history["val_loss"].append(val_loss)
         history["val_acc"].append(val_acc)
- 
+
         phase = "frozen" if epoch <= freeze_epochs else "fine-tune"
         print(f"  Epoch {epoch:3d}/{epochs} [{phase:9s}] "
               f"Train: {train_acc:.4f} ({train_loss:.4f})  "
-              f"Val: {val_acc:.4f} ({val_loss:.4f})  "
-              f"[{elapsed:.1f}s]")
- 
-        # --- Save best model ---
+              f"Val: {val_acc:.4f} ({val_loss:.4f})  [{elapsed:.1f}s]")
+
         if val_acc > best_val_acc:
             best_val_acc = val_acc
-            best_epoch = epoch
+            best_epoch   = epoch
             torch.save({
                 "epoch": epoch,
                 "model_state_dict": model.state_dict(),
@@ -239,58 +220,49 @@ def run_training(
                 "class_to_idx": class_to_idx,
                 "num_classes": num_classes,
             }, os.path.join(output_dir, "best_model.pth"))
- 
-    print(f"\nBest validation accuracy: {best_val_acc:.4f} at epoch {best_epoch}")
- 
-    # --- Plot training curves ---
-    print("\nGenerating plots...")
+
+    print(f"\nBest validation accuracy: {best_val_acc:.4f} (epoch {best_epoch})")
+
+    # ── Plots ──────────────────────────────────────────────────────────
     plot_training_curves(history, output_dir)
- 
-    # --- Test evaluation ---
+
+    # ── Test evaluation ────────────────────────────────────────────────
     print("\nEvaluating on test set...")
-    checkpoint = torch.load(os.path.join(output_dir, "best_model.pth"),
-                            map_location=device, weights_only=False)
-    model.load_state_dict(checkpoint["model_state_dict"])
- 
+    ckpt = torch.load(os.path.join(output_dir, "best_model.pth"),
+                      map_location=device, weights_only=False)
+    model.load_state_dict(ckpt["model_state_dict"])
+
     test_loss, test_acc, test_preds, test_labels = evaluate(
         model, test_loader, criterion, device)
- 
+
     print(f"\n{'='*60}")
     print(f"TEST RESULTS (best model from epoch {best_epoch})")
     print(f"{'='*60}")
-    print(f"  Accuracy: {test_acc:.4f} ({sum(test_preds == test_labels)}"
-          f"/{len(test_labels)} correct)")
+    print(f"  Accuracy: {test_acc:.4f}")
     print(f"  Loss:     {test_loss:.4f}")
- 
-    # --- Classification report ---
+
     report = classification_report(
         test_labels, test_preds, target_names=class_names, digits=4)
     print(f"\nClassification Report:\n{report}")
- 
-    # Save report to file
+
     with open(os.path.join(output_dir, "classification_report.txt"), "w") as f:
         f.write(f"Test Accuracy: {test_acc:.4f}\n")
         f.write(f"Test Loss: {test_loss:.4f}\n")
         f.write(f"Best Epoch: {best_epoch}\n\n")
         f.write(report)
- 
-    # --- Confusion matrix ---
+
     plot_confusion_matrix(test_labels, test_preds, class_names, output_dir)
- 
-    # --- Save full results ---
+
+    # ── Save full results ──────────────────────────────────────────────
     results = {
         "test_accuracy": float(test_acc),
         "test_loss": float(test_loss),
         "best_epoch": best_epoch,
         "best_val_accuracy": float(best_val_acc),
-        "epochs": epochs,
-        "freeze_epochs": freeze_epochs,
-        "batch_size": batch_size,
-        "learning_rate": lr,
-        "num_classes": num_classes,
-        "class_names": class_names,
-        "class_to_idx": class_to_idx,
-        "history": history,
+        "epochs": epochs, "freeze_epochs": freeze_epochs,
+        "batch_size": batch_size, "learning_rate": lr,
+        "num_classes": num_classes, "class_names": class_names,
+        "class_to_idx": class_to_idx, "history": history,
         "device": str(device),
         "train_samples": len(train_dataset),
         "val_samples": len(val_dataset),
@@ -298,31 +270,37 @@ def run_training(
     }
     with open(os.path.join(output_dir, "results.json"), "w") as f:
         json.dump(results, f, indent=2)
- 
-    print(f"\nAll results saved to {output_dir}/")
-    print(f"  best_model.pth           — model checkpoint")
-    print(f"  training_curves.png      — loss & accuracy plots")
-    print(f"  confusion_matrix.png     — test set confusion matrix")
-    print(f"  classification_report.txt — per-class precision/recall/F1")
-    print(f"  results.json             — full metrics & hyperparameters")
- 
-    # --- Model size (for Jetson Nano planning) ---
-    model_size_mb = os.path.getsize(
+
+    model_size = os.path.getsize(
         os.path.join(output_dir, "best_model.pth")) / (1024 * 1024)
-    print(f"\n  Model checkpoint size: {model_size_mb:.1f} MB")
     total_params = sum(p.numel() for p in model.parameters())
-    print(f"  Total parameters: {total_params:,}")
- 
+    print(f"\n  Model size: {model_size:.1f} MB, "
+          f"Parameters: {total_params:,}")
+    print(f"  Results saved to {output_dir}/")
+
     return model, results
 
 
 def main():
+    parser = argparse.ArgumentParser(
+        description="GNSS Interference Classification Pipeline")
+    parser.add_argument("--skip-prepare", action="store_true",
+                        help="Skip dataset preparation (spectrograms exist)")
+    parser.add_argument("--prepare-only", action="store_true",
+                        help="Only prepare dataset, do not train")
+    parser.add_argument("--epochs", type=int, default=20)
+    parser.add_argument("--batch-size", type=int, default=32)
+    parser.add_argument("--lr", type=float, default=1e-3)
+    parser.add_argument("--device", type=str, default="auto")
+    args = parser.parse_args()
 
-    # Prepare the datasets for processing (should be done only once)
-    prepare_datasets()
+    if not args.skip_prepare:
+        prepare_datasets()
 
-    # Train the neural networks on the spectrograms
-    run_training(data_dir="./combined_spectrograms", output_dir="./Output")
+    if not args.prepare_only:
+        run_training(epochs=args.epochs, batch_size=args.batch_size,
+                     lr=args.lr, device_str=args.device)
+
 
 if __name__ == "__main__":
     main()
