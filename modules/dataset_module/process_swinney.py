@@ -32,7 +32,7 @@ from scipy.io import loadmat
 import numpy as np
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Optional
+from common.types import *
 
 
 # Maps Swinney directory names to the unified project class labels.
@@ -45,36 +45,6 @@ SWINNEY_CLASS_MAP: dict[str, str] = {
     "DME":         "jam_dme",
     "NB":          "jam_narrowband",
 }
-
-
-# ---------------------------------------------------------------------------
-# Segment dataclass
-# ---------------------------------------------------------------------------
-@dataclass
-class Segment:
-    """
-    A single IQ segment loaded from a Swinney .mat file.
-
-    Attributes:
-        data: Complex IQ samples as a complex64 array.
-        label: Unified class label (e.g. 'jam_chirp', 'clean').
-        source_file: Filename of the originating .mat file.
-        scenario: Source split identifier (e.g. 'swinney_training').
-        start_sample: Always 0 for Swinney (whole-file segments).
-        is_spoofed: Always False — Swinney contains jamming only, not spoofing.
-        features: Optional 8-element float32 feature vector produced by
-            compute_features(). None until explicitly computed.
-    """
-    data: np.ndarray          # Complex IQ samples (complex64)
-    label: str                # Class label
-    source_file: str          # Origin filename
-    scenario: str             # Scenario identifier
-    start_sample: int         # Offset within the source file
-    is_spoofed: bool          # True for post-onset OAKBAT windows
-    features: Optional[np.ndarray] = field(default=None)
-    # Shape: (N_FEATURES,) float32, populated by compute_features().
-    # None means features have not been computed yet — existing code that
-    # does not use features is unaffected.
 
 
 def load_swinney_segments(swinney_dir: str,

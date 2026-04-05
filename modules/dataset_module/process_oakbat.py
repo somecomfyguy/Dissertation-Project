@@ -21,9 +21,7 @@ from pathlib import Path
 from typing import Optional
 from dataclasses import dataclass, field
 import numpy as np
-
-# Global variables
-SAMPLE_RATE = 5e6  # 5 MHz sampling frequency for all files
+from common.types import *
 
 # Relative paths to GPS and Galileo subdirectories within the dataset root.
 # These are used to build per-scenario file paths in SCENARIOS_GPS/GALILEO.
@@ -97,37 +95,6 @@ SCENARIOS_GALILEO = [
 
 # Combined list used by scan/pipeline functions when iterating all scenarios.
 ALL_SCENARIOS = SCENARIOS_GPS + SCENARIOS_GALILEO
-
-
-# SEGMENT DATACLASS
-@dataclass
-class Segment:
-    """
-    A fixed-length IQ window extracted from an OAKBAT recording.
-
-    Attributes:
-        data:         Complex IQ samples as a complex64 
-        label:        Class label (e.g. 'clean' or 'spoof_overpowered_instant').
-        source_file:  Path to the originating .bin file.
-        scenario:     Scenario identifier of the parent recording (e.g. 'ds1').
-        start_sample: Sample offset within the source file at which this
-                      window begins, for tracing segments back to the original recording.
-        is_spoofed:   True if the window lies entirely after the spoofing
-                      onset; False for clean pre-onset windows.
-        features:     Optional 8-element float32 feature vector produced by
-                      compute_features(). None until explicitly computed so
-                      existing code that does not use features is unaffected.
-    """
-    data: np.ndarray          # Complex IQ samples (complex64)
-    label: str                # Class label
-    source_file: str          # Origin filename
-    scenario: str             # Scenario identifier
-    start_sample: int         # Offset within the source file
-    is_spoofed: bool          # True for post-onset OAKBAT windows
-    features: Optional[np.ndarray] = field(default=None)
-    # Shape: (N_FEATURES,) float32, populated by compute_features().
-    # None means features have not been computed yet — existing code that
-    # does not use features is unaffected.
 
 
 def segment_signal(signal: np.ndarray, scenario: OakbatScenario,
