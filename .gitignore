@@ -6,3 +6,4 @@ combined_spectrograms/
 Output/
 modules/dataset_module/deprecated/
 modules/nn_module/deprecated/
+venv/
