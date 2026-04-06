@@ -203,3 +203,93 @@ def load_oakbat_iq(filepath: str, fs: float = SAMPLE_RATE,
     raw = raw[:len(raw) - len(raw) % 2]
     iq = raw.reshape(-1, 2)
     return iq[:, 0].astype(np.float32) + 1j * iq[:, 1].astype(np.float32)
+
+
+def scan_oakbat_segments(oakbat_dir: str,
+                         constellations: list[str] = ["gps", "galileo"],
+                         segment_length_s: float = 0.02,
+                         overlap_s: float = 0.0,
+                         max_file_duration_s: Optional[float] = None,
+                         ) -> list[Segment]:
+    """
+    Scan OAKBAT files and produce Segment metadata WITHOUT loading IQ.
+
+    File sizes are used to determine total sample counts; segment
+    boundaries and labels are computed from the scenario onset times.
+    The resulting Segment objects have data=None — IQ is read on demand
+    by read_oakbat_chunk() during normalization and saving.
+
+    Args:
+        oakbat_dir:          Root directory containing L1/ and E1/ subdirs.
+        constellations:      Which constellations to include.
+        segment_length_s:    Window duration in seconds (default 20 ms).
+        overlap_s:           Fractional overlap in [0.0, 1.0).
+        max_file_duration_s: Cap on how much of each file to use (None = all).
+
+    Returns:
+        List of Segment objects with data=None, ready for streaming read.
+    """
+    oakbat_path    = Path(oakbat_dir)
+    window_samples = int(segment_length_s * SAMPLE_RATE)
+    hop_samples    = int(window_samples * (1 - overlap_s))
+
+    scenarios = [s for s in ALL_SCENARIOS
+                 if any(c in s.data_path.lower() for c in constellations)
+                 or ("L1" in s.data_path and "gps" in constellations)
+                 or ("E1" in s.data_path and "galileo" in constellations)]
+
+    all_meta: list[Segment] = []
+
+    for scenario in scenarios:
+        filepath = oakbat_path / scenario.data_path
+        if not filepath.exists():
+            print(f"  [SKIP] {filepath} not found")
+            continue
+
+        # Determine total samples from file size — no data loaded
+        file_size_bytes = filepath.stat().st_size
+        total_samples   = file_size_bytes // 4   # 2 × int16 per complex sample
+
+        if max_file_duration_s is not None:
+            max_samples   = int(max_file_duration_s * SAMPLE_RATE)
+            total_samples = min(total_samples, max_samples)
+
+        onset_sample = int(scenario.onset_time * SAMPLE_RATE)
+
+        n_clean   = 0
+        n_spoofed = 0
+        start     = 0
+
+        while start + window_samples <= total_samples:
+            end = start + window_samples
+
+            if end <= onset_sample:
+                label      = "clean"
+                is_spoofed = False
+                n_clean   += 1
+            elif start >= onset_sample:
+                label      = scenario.spoof_class
+                is_spoofed = True
+                n_spoofed += 1
+            else:
+                start += hop_samples
+                continue
+
+            all_meta.append(Segment(
+                data=None,
+                label=label,
+                source_file=str(filepath),
+                scenario=scenario.scenario,
+                start_sample=start,
+                num_samples=window_samples,
+                is_spoofed=is_spoofed,
+                dataset="oakbat",
+            ))
+            start += hop_samples
+
+        print(f"  Scanned {filepath.name} ({scenario.scenario}): "
+              f"{n_clean + n_spoofed} segments "
+              f"(clean: {n_clean}, spoofed: {n_spoofed})")
+
+    print(f"  Total OAKBAT segments: {len(all_meta)}")
+    return all_meta

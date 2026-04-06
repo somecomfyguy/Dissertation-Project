@@ -25,7 +25,7 @@ from modules.common.types import STFTParams, SAMPLE_RATE
 from modules.common.spectrogram import SpectrogramNormalizer
 
 from modules.dataset_module.process_oakbat import (
-    load_oakbat_iq, segment_signal, ALL_SCENARIOS,
+    load_oakbat_iq, segment_signal, scan_oakbat_segments, ALL_SCENARIOS,
 )
 from modules.dataset_module.process_swinney import load_swinney_segments
 from modules.dataset_module.dataset_main import (
@@ -39,9 +39,9 @@ from modules.nn_module.resnet18_init import build_resnet18
 from modules.nn_module.dataset import SpectrogramDataset
 
 # Paths
-OAKBAT_DATASET_PATH  = "OakbatSpoofing"
-SWINNEY_DATASET_PATH = "SwinneyJamming"
-SPECTROGRAM_DIR      = "./combined_spectrograms"
+OAKBAT_DATASET_PATH  = "./modules/dataset_module/datasets/OakbatSpoofing"
+SWINNEY_DATASET_PATH = "./modules/dataset_module/datasets/SwinneyJamming"
+SPECTROGRAM_DIR      = "./Output/combined_spectrograms"
 OUTPUT_DIR           = "./Output"
 
 
@@ -56,23 +56,9 @@ def prepare_datasets(oakbat_dir: str = OAKBAT_DATASET_PATH,
     """
     stft_params = STFTParams()
 
-    # ── Step 1: Load and segment OAKBAT ────────────────────────────────
-    print("=" * 60)
-    print("Stage 1: Dataset Preparation")
-    print("=" * 60)
-
-    oakbat_segments = []
-    oakbat_path = Path(oakbat_dir)
-    for scenario in ALL_SCENARIOS:
-        filepath = oakbat_path / scenario.data_path
-        if not filepath.exists():
-            print(f"  [SKIP] {filepath} not found")
-            continue
-        print(f"  Loading {filepath.name} ({scenario.scenario})...")
-        signal = load_oakbat_iq(str(filepath))
-        segs = segment_signal(signal, scenario)
-        print(f"    → {len(segs)} segments")
-        oakbat_segments.extend(segs)
+    # ── Step 1: Scan OAKBAT (metadata only, no IQ loaded) ─────────
+    print("Scanning OAKBAT segments (metadata only)...")
+    oakbat_segments = scan_oakbat_segments(oakbat_dir)
 
     # ── Step 2: Load Swinney ───────────────────────────────────────────
     swinney_segments = []

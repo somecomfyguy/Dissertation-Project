@@ -65,6 +65,10 @@ def read_segment_iq(meta: Segment) -> np.ndarray:
         Complex64 numpy array of shape (num_samples,) for OAKBAT, or the
         full-file IQ array for Swinney (whole-file segments).
     """
+    # If IQ data is already loaded in memory, use it directly
+    if meta.data is not None:
+        return meta.data
+
     if meta.dataset == "oakbat":
         return read_oakbat_chunk(meta.source_file, meta.start_sample,
                                 meta.num_samples)
