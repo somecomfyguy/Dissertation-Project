@@ -42,7 +42,7 @@ from modules.nn_module.dataset import SpectrogramDataset
 OAKBAT_DATASET_PATH  = "./modules/dataset_module/datasets/OakbatSpoofing"
 SWINNEY_DATASET_PATH = "./modules/dataset_module/datasets/SwinneyJamming"
 SPECTROGRAM_DIR      = "./Output/combined_spectrograms"
-OUTPUT_DIR           = "./Output"
+OUTPUT_DIR           = "./Output/results_resnet18_11classes_regularized"
 
 
 # Prepare dataset
@@ -99,7 +99,7 @@ def run_training(
     batch_size: int = 32,
     lr: float = 1e-3,
     freeze_epochs: int = 5,
-    weight_decay: float = 1e-4,
+    weight_decay: float = 1e-3,
     num_workers: int = 2,
     device_str: str = "auto",
 ):
@@ -149,7 +149,7 @@ def run_training(
     # ── Model ──────────────────────────────────────────────────────────
     print("\nBuilding model...")
     model = build_resnet18(num_classes, freeze_backbone=True).to(device)
-    criterion = nn.CrossEntropyLoss()
+    criterion = nn.CrossEntropyLoss(label_smoothing=0.1)
 
     # ── Training loop ──────────────────────────────────────────────────
     history = {"train_loss": [], "train_acc": [], "val_loss": [], "val_acc": []}

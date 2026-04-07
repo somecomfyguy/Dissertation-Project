@@ -62,6 +62,8 @@ class OakbatScenario:
 #   ds4: Power-matched spoofing (dynamic)
 #   ds5: Position push
 #   ds6: Dynamic position push
+#   Note: ds6 and ds4 can be merged together, initial results show 
+#   that the confusion matrix for both is identical
 SCENARIOS_GPS = [
     OakbatScenario(os.path.join(oakbat_gps_filepath, "os1.bin"),  "ds1",
                    "spoof_overpowered_instant",  onset_time=120.0),
@@ -70,11 +72,11 @@ SCENARIOS_GPS = [
     OakbatScenario(os.path.join(oakbat_gps_filepath, "os3.bin"),  "ds3",
                    "spoof_matched_time",         onset_time=120.0),
     OakbatScenario(os.path.join(oakbat_gps_filepath, "os4.bin"),  "ds4",
-                   "spoof_matched_dynamic",      onset_time=120.0),
+                   "spoof_dynamic",      onset_time=120.0),
     OakbatScenario(os.path.join(oakbat_gps_filepath, "os5.bin"),  "ds5",
                    "spoof_position_push",        onset_time=120.0),
     OakbatScenario(os.path.join(oakbat_gps_filepath, "os6.bin"),  "ds6",
-                   "spoof_dynamic_position",     onset_time=120.0),
+                   "spoof_dynamic",     onset_time=120.0),
 ]
 
 # OAKBAT Galileo E1 scenarios (os9a.bin, os10.bin – os14.bin under E1/)
@@ -87,11 +89,11 @@ SCENARIOS_GALILEO = [
     OakbatScenario(os.path.join(oakbat_gal_filepath, "os11.bin"), "ds3",
                    "spoof_matched_time",         onset_time=120.0),
     OakbatScenario(os.path.join(oakbat_gal_filepath, "os12.bin"), "ds4",
-                   "spoof_matched_dynamic",      onset_time=120.0),
+                   "spoof_dynamic",      onset_time=120.0),
     OakbatScenario(os.path.join(oakbat_gal_filepath, "os13.bin"), "ds5",
                    "spoof_position_push",        onset_time=120.0),
     OakbatScenario(os.path.join(oakbat_gal_filepath, "os14.bin"), "ds6",
-                   "spoof_dynamic_position",     onset_time=120.0),
+                   "spoof_dynamic",     onset_time=120.0),
 ]
 
 # Combined list used by scan/pipeline functions when iterating all scenarios.

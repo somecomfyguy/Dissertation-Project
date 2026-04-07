@@ -35,7 +35,10 @@ def build_resnet18(num_classes: int, freeze_backbone: bool = True):
  
     # Replace the ImageNet 1000-class head with a task-specific head.
     in_features = model.fc.in_features
-    model.fc = nn.Linear(in_features, num_classes)
+    model.fc = nn.Sequential(
+        nn.Dropout(p=0.4),
+        nn.Linear(in_features, num_classes),
+    ) # Dropout for better results
  
     # Count parameters
     total = sum(p.numel() for p in model.parameters())
