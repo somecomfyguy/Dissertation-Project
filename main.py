@@ -36,13 +36,15 @@ from modules.nn_module.nn_main import (
     train_one_epoch, evaluate, plot_training_curves, plot_confusion_matrix,
 )
 from modules.nn_module.resnet18_init import build_resnet18
+from modules.nn_module.mobilenetv2_init import build_mobilenetv2
+from modules.nn_module.efficientnetb0_init import build_efficientnetb0
 from modules.nn_module.dataset import SpectrogramDataset
 
 # Paths
 OAKBAT_DATASET_PATH  = "./modules/dataset_module/datasets/OakbatSpoofing"
 SWINNEY_DATASET_PATH = "./modules/dataset_module/datasets/SwinneyJamming"
 SPECTROGRAM_DIR      = "./Output/combined_spectrograms"
-OUTPUT_DIR           = "./Output/results_resnet18_11classes_regularized"
+OUTPUT_DIR           = "./Output/results_11classes_regularized_"
 
 
 # Prepare dataset
@@ -95,6 +97,7 @@ def prepare_datasets(oakbat_dir: str = OAKBAT_DATASET_PATH,
 def run_training(
     data_dir: str = SPECTROGRAM_DIR,
     output_dir: str = OUTPUT_DIR,
+    model_name: str = "resnet18",
     epochs: int = 20,
     batch_size: int = 32,
     lr: float = 1e-3,
@@ -146,9 +149,18 @@ def run_training(
     val_loader   = DataLoader(val_dataset,   shuffle=False, **loader_kwargs)
     test_loader  = DataLoader(test_dataset,  shuffle=False, **loader_kwargs)
 
-    # ── Model ──────────────────────────────────────────────────────────
-    print("\nBuilding model...")
-    model = build_resnet18(num_classes, freeze_backbone=True).to(device)
+    # ── Model builders ─────────────────────────────────────────────
+    MODEL_BUILDERS = {
+        "resnet18":       build_resnet18,
+        "mobilenetv2":    build_mobilenetv2,
+        "efficientnetb0": build_efficientnetb0,
+    }
+
+    print(f"\nBuilding model: {model_name}...")
+    if model_name not in MODEL_BUILDERS:
+        raise ValueError(f"Unknown model: {model_name}. "
+                         f"Choose from: {list(MODEL_BUILDERS.keys())}")
+    model = MODEL_BUILDERS[model_name](num_classes, freeze_backbone=True).to(device)
     criterion = nn.CrossEntropyLoss(label_smoothing=0.1)
 
     # ── Training loop ──────────────────────────────────────────────────
@@ -174,7 +186,14 @@ def run_training(
             scheduler = optim.lr_scheduler.CosineAnnealingLR(
                 optimizer, T_max=epochs - freeze_epochs)
         elif epoch == 1:
-            optimizer = optim.Adam(model.fc.parameters(), lr=lr,
+            # Get the classifier head parameters (works for all architectures)
+            if hasattr(model, 'fc'):
+                head_params = model.fc.parameters()
+            elif hasattr(model, 'classifier'):
+                head_params = model.classifier.parameters()
+            else:
+                head_params = model.parameters()
+            optimizer = optim.Adam(head_params, lr=lr,
                                   weight_decay=weight_decay)
             scheduler = optim.lr_scheduler.StepLR(
                 optimizer, step_size=3, gamma=0.5)
@@ -278,10 +297,16 @@ def main():
     parser.add_argument("--batch-size", type=int, default=32)
     parser.add_argument("--lr", type=float, default=1e-3)
     parser.add_argument("--device", type=str, default="auto")
+    parser.add_argument("--model", type=str, default="resnet18",
+                        choices=["resnet18", "mobilenetv2", "efficientnetb0"],
+                        help="Model architecture to train")
     args = parser.parse_args()
 
-    if not args.skip_prepare:
-        prepare_datasets()
+    if not args.prepare_only:
+        output_dir = os.path.join(OUTPUT_DIR, args.model)
+        run_training(model_name=args.model, output_dir=output_dir,
+                     epochs=args.epochs, batch_size=args.batch_size,
+                     lr=args.lr, device_str=args.device)
 
     if not args.prepare_only:
         run_training(epochs=args.epochs, batch_size=args.batch_size,
