@@ -38,6 +38,7 @@ from modules.nn_module.nn_main import (
 from modules.nn_module.resnet18_init import build_resnet18
 from modules.nn_module.mobilenetv2_init import build_mobilenetv2
 from modules.nn_module.efficientnetb0_init import build_efficientnetb0
+from modules.nn_module.custom_cnn_init import build_custom_cnn
 from modules.nn_module.dataset import SpectrogramDataset
 
 # Paths
@@ -154,6 +155,7 @@ def run_training(
         "resnet18":       build_resnet18,
         "mobilenetv2":    build_mobilenetv2,
         "efficientnetb0": build_efficientnetb0,
+        "custom_cnn":     build_custom_cnn,
     }
 
     print(f"\nBuilding model: {model_name}...")
@@ -298,7 +300,8 @@ def main():
     parser.add_argument("--lr", type=float, default=1e-3)
     parser.add_argument("--device", type=str, default="auto")
     parser.add_argument("--model", type=str, default="resnet18",
-                        choices=["resnet18", "mobilenetv2", "efficientnetb0"],
+                        choices=["resnet18", "mobilenetv2", 
+                                 "efficientnetb0", "custom_cnn"],
                         help="Model architecture to train")
     args = parser.parse_args()
 
@@ -306,10 +309,6 @@ def main():
         output_dir = os.path.join(OUTPUT_DIR, args.model)
         run_training(model_name=args.model, output_dir=output_dir,
                      epochs=args.epochs, batch_size=args.batch_size,
-                     lr=args.lr, device_str=args.device)
-
-    if not args.prepare_only:
-        run_training(epochs=args.epochs, batch_size=args.batch_size,
                      lr=args.lr, device_str=args.device)
 
 
