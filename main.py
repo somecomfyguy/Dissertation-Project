@@ -41,11 +41,15 @@ from modules.nn_module.efficientnetb0_init import build_efficientnetb0
 from modules.nn_module.custom_cnn_init import build_custom_cnn
 from modules.nn_module.dataset import SpectrogramDataset
 
+from modules.common.features import FeatureNormalizer
+from modules.dataset_module.dataset_main import compute_feature_normalization
+from modules.nn_module.fusion_model import build_fusion_model
+
 # Paths
 OAKBAT_DATASET_PATH  = "./modules/dataset_module/datasets/OakbatSpoofing"
 SWINNEY_DATASET_PATH = "./modules/dataset_module/datasets/SwinneyJamming"
 SPECTROGRAM_DIR      = "./Output/combined_spectrograms"
-OUTPUT_DIR           = "./Output/results_11classes_regularized_"
+OUTPUT_DIR           = "./Output/results_11classes_regularized_fusion"
 
 
 # Prepare dataset
@@ -80,18 +84,25 @@ def prepare_datasets(oakbat_dir: str = OAKBAT_DATASET_PATH,
     splits = create_splits(combined, balance_classes=True,
                            max_per_class=max_per_class)
 
-    # ── Step 4: Joint normalization (training split only) ──────────────
+    # ── Step 4: Joint spectrogram normalization (training split only) ──
     os.makedirs(output_dir, exist_ok=True)
-    normalizer = compute_joint_normalization(
+    spec_normalizer = compute_joint_normalization(
         [s for s in splits["train"] if s.dataset == "oakbat"],
         [s for s in splits["train"] if s.dataset == "swinney"],
         stft_params,
         output_path=os.path.join(output_dir, "normalization_stats.json"),
     )
 
-    # ── Step 5: Save spectrograms ──────────────────────────────────────
+    # ── Step 5: Feature normalization (training split only) ────────────
+    feat_normalizer = compute_feature_normalization(
+        splits["train"],
+        fs=SAMPLE_RATE,
+        output_path=os.path.join(output_dir, "feature_norm_stats.json"),
+    )
+
+    # ── Step 6: Save spectrograms + features ───────────────────────────
     save_dataset_streaming(splits, output_dir, SAMPLE_RATE,
-                           stft_params, normalizer)
+                           stft_params, spec_normalizer, feat_normalizer)
     
 
 # Training and evaluation
@@ -99,9 +110,11 @@ def run_training(
     data_dir: str = SPECTROGRAM_DIR,
     output_dir: str = OUTPUT_DIR,
     model_name: str = "resnet18",
-    epochs: int = 30,
+    fusion: bool = False,
+    backbone_name: str = "resnet18",
+    epochs: int = 20,
     batch_size: int = 32,
-    lr: float = 1e-2,
+    lr: float = 1e-3,
     freeze_epochs: int = 5,
     weight_decay: float = 1e-3,
     num_workers: int = 2,
@@ -129,11 +142,14 @@ def run_training(
 
     # ── Datasets ───────────────────────────────────────────────────────
     print("\nLoading datasets...")
-    train_dataset = SpectrogramDataset(str(data_path / "train"))
+    train_dataset = SpectrogramDataset(str(data_path / "train"),
+                                       load_features=fusion)
     class_to_idx  = train_dataset.class_to_idx
 
-    val_dataset  = SpectrogramDataset(str(data_path / "val"),  class_to_idx)
-    test_dataset = SpectrogramDataset(str(data_path / "test"), class_to_idx)
+    val_dataset  = SpectrogramDataset(str(data_path / "val"),  class_to_idx,
+                                      load_features=fusion)
+    test_dataset = SpectrogramDataset(str(data_path / "test"), class_to_idx,
+                                      load_features=fusion)
 
     class_names = [train_dataset.idx_to_class[i]
                    for i in range(train_dataset.num_classes)]
@@ -151,18 +167,24 @@ def run_training(
     test_loader  = DataLoader(test_dataset,  shuffle=False, **loader_kwargs)
 
     # ── Model builders ─────────────────────────────────────────────
-    MODEL_BUILDERS = {
-        "resnet18":       build_resnet18,
-        "mobilenetv2":    build_mobilenetv2,
-        "efficientnetb0": build_efficientnetb0,
-        "custom_cnn":     build_custom_cnn,
-    }
-
-    print(f"\nBuilding model: {model_name}...")
-    if model_name not in MODEL_BUILDERS:
-        raise ValueError(f"Unknown model: {model_name}. "
-                         f"Choose from: {list(MODEL_BUILDERS.keys())}")
-    model = MODEL_BUILDERS[model_name](num_classes, freeze_backbone=True).to(device)
+    if fusion:
+        print(f"\nBuilding fusion model with {backbone_name} backbone...")
+        model = build_fusion_model(backbone_name, num_classes,
+                                   freeze_backbone=True).to(device)
+    else:
+        MODEL_BUILDERS = {
+            "resnet18":       build_resnet18,
+            "mobilenetv2":    build_mobilenetv2,
+            "efficientnetb0": build_efficientnetb0,
+            "custom_cnn":     build_custom_cnn,
+        }
+        print(f"\nBuilding model: {model_name}...")
+        if model_name not in MODEL_BUILDERS:
+            raise ValueError(f"Unknown model: {model_name}. "
+                             f"Choose from: {list(MODEL_BUILDERS.keys())}")
+        model = MODEL_BUILDERS[model_name](num_classes,
+                                           freeze_backbone=True).to(device)
+        
     criterion = nn.CrossEntropyLoss(label_smoothing=0.1)
 
     # ── Training loop ──────────────────────────────────────────────────
@@ -188,8 +210,11 @@ def run_training(
             scheduler = optim.lr_scheduler.CosineAnnealingLR(
                 optimizer, T_max=epochs - freeze_epochs)
         elif epoch == 1:
-            # Get the classifier head parameters (works for all architectures)
-            if hasattr(model, 'fc'):
+            if fusion:
+                # Train feature MLP + classifier during frozen phase
+                head_params = list(model.feat_mlp.parameters()) + \
+                              list(model.classifier.parameters())
+            elif hasattr(model, 'fc'):
                 head_params = model.fc.parameters()
             elif hasattr(model, 'classifier'):
                 head_params = model.classifier.parameters()
@@ -201,9 +226,9 @@ def run_training(
                 optimizer, step_size=3, gamma=0.5)
 
         train_loss, train_acc = train_one_epoch(
-            model, train_loader, criterion, optimizer, device)
+            model, train_loader, criterion, optimizer, device, fusion=fusion)
         val_loss, val_acc, _, _ = evaluate(
-            model, val_loader, criterion, device)
+            model, val_loader, criterion, device, fusion=fusion)
         scheduler.step()
 
         elapsed = time.time() - epoch_start
@@ -240,7 +265,7 @@ def run_training(
     model.load_state_dict(ckpt["model_state_dict"])
 
     test_loss, test_acc, test_preds, test_labels = evaluate(
-        model, test_loader, criterion, device)
+        model, test_loader, criterion, device, fusion=fusion)
 
     print(f"\n{'='*60}")
     print(f"TEST RESULTS (best model from epoch {best_epoch})")
@@ -303,11 +328,23 @@ def main():
                         choices=["resnet18", "mobilenetv2", 
                                  "efficientnetb0", "custom_cnn"],
                         help="Model architecture to train")
+    parser.add_argument("--fusion", action="store_true",
+                        help="Use spectrogram + feature fusion model")
+    parser.add_argument("--backbone", type=str, default="resnet18",
+                        choices=["resnet18", "mobilenetv2", "efficientnetb0"],
+                        help="CNN backbone for fusion model")
     args = parser.parse_args()
 
+    if not args.skip_prepare:
+        prepare_datasets()
+
     if not args.prepare_only:
-        output_dir = os.path.join(OUTPUT_DIR, args.model)
-        run_training(model_name=args.model, output_dir=output_dir,
+        if args.fusion:
+            output_dir = os.path.join(OUTPUT_DIR, f"fusion_{args.backbone}")
+        else:
+            output_dir = os.path.join(OUTPUT_DIR, args.model)
+        run_training(model_name=args.model, fusion=args.fusion,
+                     backbone_name=args.backbone, output_dir=output_dir,
                      epochs=args.epochs, batch_size=args.batch_size,
                      lr=args.lr, device_str=args.device)
 

@@ -21,4 +21,4 @@ ResNet18, MobileNetv2/v3, SVM, RF, custom architecure, possibly GAN?
     - do adversarial training  (optional)
     - redo codebase to be more configurable
     - add documentation for first stage
-    
+    - 11.04.2026 added fusion to testing    

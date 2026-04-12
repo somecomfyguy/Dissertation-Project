@@ -22,6 +22,7 @@ def train_one_epoch(
     criterion: nn.Module,
     optimizer: torch.optim.Optimizer,
     device: torch.device,
+    fusion: bool = False,
 ) -> tuple[float, float]:
     """
     Run one full training epoch over the provided dataloader. \n
@@ -44,17 +45,26 @@ def train_one_epoch(
     correct = 0
     total = 0
 
-    for inputs, labels in dataloader:
-        inputs = inputs.to(device)
-        labels = labels.to(device)
+    for batch in dataloader:
+        if fusion:
+            (spectrograms, features), labels = batch
+            spectrograms = spectrograms.to(device)
+            features = features.to(device)
+            labels = labels.to(device)
+            optimizer.zero_grad()
+            outputs = model(spectrograms, features)
+        else:
+            inputs, labels = batch
+            inputs = inputs.to(device)
+            labels = labels.to(device)
+            optimizer.zero_grad()
+            outputs = model(inputs)
 
-        optimizer.zero_grad()
-        outputs = model(inputs)
         loss = criterion(outputs, labels)
         loss.backward()
         optimizer.step()
 
-        running_loss += loss.item() * inputs.size(0)
+        running_loss += loss.item() * labels.size(0)
         _, predicted = outputs.max(1)
         total += labels.size(0)
         correct += predicted.eq(labels).sum().item()
@@ -71,6 +81,7 @@ def evaluate(
     dataloader: DataLoader,
     criterion: nn.Module,
     device: torch.device,
+    fusion: bool = False,
 ) -> tuple[float, float, np.ndarray, np.ndarray]:
     """
     Run an inference pass over the provided dataloader (no gradient updates).\n
@@ -97,21 +108,28 @@ def evaluate(
     all_labels: list[int] = []
 
     with no_grad():
-        for inputs, labels in dataloader:
-            inputs = inputs.to(device)
-            labels = labels.to(device)
+        for batch in dataloader:
+            if fusion:
+                (spectrograms, features), labels = batch
+                spectrograms = spectrograms.to(device)
+                features = features.to(device)
+                labels = labels.to(device)
+                outputs = model(spectrograms, features)
+            else:
+                inputs, labels = batch
+                inputs = inputs.to(device)
+                labels = labels.to(device)
+                outputs = model(inputs)
 
-            outputs = model(inputs)
             loss = criterion(outputs, labels)
-
-            running_loss += loss.item() * inputs.size(0)
+            running_loss += loss.item() * labels.size(0)
             _, predicted = outputs.max(1)
             total += labels.size(0)
             correct += predicted.eq(labels).sum().item()
 
             all_preds.extend(predicted.cpu().numpy())
             all_labels.extend(labels.cpu().numpy())
-
+    
     return (
         running_loss / total,
         correct / total,

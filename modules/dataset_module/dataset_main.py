@@ -1,5 +1,5 @@
 """
-Dataset processing module for GNSS interference classification.
+Dataset processing orchestration for GNSS interference classification.
 
 Handles both OAKBAT (spoofing) and Swinney (jamming) datasets in a unified
 two-pass streaming pipeline optimised for the 16 GB RAM / no-dedicated-GPU
@@ -47,6 +47,7 @@ import numpy as np
 
 from modules.common.types import Segment, STFTParams, SAMPLE_RATE
 from modules.common.spectrogram import compute_spectrogram, SpectrogramNormalizer
+from modules.common.features import compute_features, FeatureNormalizer
 from modules.dataset_module.process_oakbat import read_oakbat_chunk
 from modules.dataset_module.process_swinney import read_swinney_file
 
@@ -159,14 +160,16 @@ def save_dataset_streaming(splits: dict,
                            output_dir: str,
                            fs: float,
                            stft_params: STFTParams,
-                           normalizer: SpectrogramNormalizer,
+                           spec_normalizer: SpectrogramNormalizer,
+                           feat_normalizer: Optional[FeatureNormalizer] = None,
                            save_format: str = "npy") -> None:
     """
-    Stream all splits to disk as normalised spectrograms, one segment at a
-    time.
+    Stream all splits to disk as normalised spectrograms and (optionally)
+    feature vectors, one segment at a time.
 
-    Spectrograms are saved under:
-        <output_dir>/<split>/<label>/spec_NNNNN.<ext>
+    Output layout:
+        <output_dir>/<split>/<label>/spec_NNNNN.npy
+        <output_dir>/<split>/<label>/feat_NNNNN.npy   (if feat_normalizer given)
 
     A metadata.json summary and the normalizer statistics are also written
     to output_dir.
@@ -180,6 +183,7 @@ def save_dataset_streaming(splits: dict,
         save_format: 'npy' (float32 array, recommended) or 'png' (uint8 image).
     """
     out = Path(output_dir)
+    save_features = feat_normalizer is not None
     metadata: dict = {
         "fs": fs,
         "stft_params": {
@@ -189,6 +193,7 @@ def save_dataset_streaming(splits: dict,
             "output_size": list(stft_params.output_size),
             "log_scale":   stft_params.log_scale,
         },
+        "features_saved": save_features,
         "splits": {},
     }
 
@@ -200,7 +205,7 @@ def save_dataset_streaming(splits: dict,
         for i, meta in enumerate(segments):
             iq   = read_segment_iq(meta)
             spec = compute_spectrogram(iq, fs, stft_params)
-            spec = normalizer.transform(spec)
+            spec = spec_normalizer.transform(spec)
 
             label_dir = split_dir / meta.label
             label_dir.mkdir(parents=True, exist_ok=True)
@@ -208,6 +213,7 @@ def save_dataset_streaming(splits: dict,
             idx                  = counters.get(meta.label, 0) + 1
             counters[meta.label] = idx
 
+            # Save spectrogram
             if save_format == "npy":
                 np.save(str(label_dir / f"spec_{idx:05d}.npy"), spec)
             elif save_format == "png":
@@ -217,16 +223,25 @@ def save_dataset_streaming(splits: dict,
                 Image.fromarray(img.astype(np.uint8)).save(
                     str(label_dir / f"spec_{idx:05d}.png"))
 
+            # Save feature vector (parallel file, same index)
+            if save_features:
+                feat = compute_features(iq, fs)
+                feat = feat_normalizer.transform(feat)
+                np.save(str(label_dir / f"feat_{idx:05d}.npy"), feat)
+
             if (i + 1) % 500 == 0:
                 print(f"  [{split_name}] Saved {i + 1}/{len(segments)}")
 
         for label, count in counters.items():
             metadata["splits"][split_name][label] = count
-        print(f"  [{split_name}] Done: {sum(counters.values())} spectrograms")
+        print(f"  [{split_name}] Done: {sum(counters.values())} spectrograms"
+              + (" + features" if save_features else ""))
 
     with open(out / "metadata.json", "w") as f:
         json.dump(metadata, f, indent=2)
-    normalizer.save(str(out / "normalization_stats.json"))
+    spec_normalizer.save(str(out / "normalization_stats.json"))
+    if save_features:
+        feat_normalizer.save(str(out / "feature_norm_stats.json"))
     print(f"\n[Save] Dataset written to {out}")
 
 
@@ -304,5 +319,41 @@ def compute_joint_normalization(oakbat_train: list[Segment],
     if output_path:
         normalizer.save(output_path)
         print(f"[JointNorm] Stats saved to {output_path}")
+
+    return normalizer
+
+
+def compute_feature_normalization(segments: list[Segment],
+                                  fs: float = SAMPLE_RATE,
+                                  output_path: Optional[str] = None,
+                                  ) -> FeatureNormalizer:
+    """
+    Stream through training segments computing per-feature z-score stats.
+    Must be called on the training split only to avoid data leakage.
+
+    Args:
+        segments:    Training split Segment list.
+        fs:          Sampling frequency.
+        output_path: If provided, save the fitted normalizer to this path.
+
+    Returns:
+        Fitted FeatureNormalizer.
+    """
+    normalizer = FeatureNormalizer()
+    total      = len(segments)
+
+    print(f"\n[FeatNorm] Computing feature stats from {total} "
+          f"training segments...")
+    for i, meta in enumerate(segments):
+        iq   = read_segment_iq(meta)
+        feat = compute_features(iq, fs)
+        normalizer.update(feat)
+        if (i + 1) % 500 == 0:
+            print(f"  Processed {i + 1}/{total}")
+
+    normalizer.finalize()
+
+    if output_path:
+        normalizer.save(output_path)
 
     return normalizer

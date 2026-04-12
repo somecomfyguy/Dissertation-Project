@@ -157,18 +157,13 @@ def compute_features(iq: np.ndarray,
     caf_ratio = _caf_peak_ratio(iq)
 
 
-    return np.array(
-        [
-            mean_pow, 
-            papr, 
-            spec_kurt, 
-            spec_skew,
-            flatness, 
-            entropy_norm, 
-            bw_norm, 
-            caf_ratio
-        ], dtype=np.float32,
-    )
+    result = np.array([mean_pow, papr, spec_kurt, spec_skew,
+                       flatness, entropy_norm, bw_norm, caf_ratio],
+                      dtype=np.float32)
+
+    result = np.nan_to_num(result, nan=0.0, posinf=0.0, neginf=0.0)
+
+    return result
 
 
 class FeatureNormalizer:
