@@ -34,6 +34,7 @@ import torch.nn as nn
 from torchvision import models
 
 from modules.common.types import N_FEATURES
+from modules.nn_module.custom_cnn_init import GNSSInterferenceCNN
 
 
 class FeatureMLP(nn.Module):
@@ -126,10 +127,25 @@ def _make_backbone_efficientnetb0(freeze: bool = True):
     return model, out_dim
 
 
+def _make_backbone_custom_cnn(freeze: bool = False):
+    """Custom CNN backbone with classifier replaced by identity."""
+    model = GNSSInterferenceCNN(num_classes=11)
+    # The classifier is: AdaptiveAvgPool2d → Flatten → Dropout → Linear
+    # We want to keep GAP + Flatten but remove Dropout + Linear
+    # The backbone output dim is 256 (from block4)
+    out_dim = 256
+    model.classifier = nn.Sequential(
+        nn.AdaptiveAvgPool2d(1),
+        nn.Flatten(),
+    )
+    return model, out_dim
+
+
 FUSION_BACKBONES = {
     "resnet18":       _make_backbone_resnet18,
     "mobilenetv2":    _make_backbone_mobilenetv2,
     "efficientnetb0": _make_backbone_efficientnetb0,
+    "custom_cnn":     _make_backbone_custom_cnn,
 }
 
 

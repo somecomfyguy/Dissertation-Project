@@ -331,7 +331,8 @@ def main():
     parser.add_argument("--fusion", action="store_true",
                         help="Use spectrogram + feature fusion model")
     parser.add_argument("--backbone", type=str, default="resnet18",
-                        choices=["resnet18", "mobilenetv2", "efficientnetb0"],
+                        choices=["resnet18", "mobilenetv2",
+                                 "efficientnetb0", "custom_cnn"],
                         help="CNN backbone for fusion model")
     args = parser.parse_args()
 
