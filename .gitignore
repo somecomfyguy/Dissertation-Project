@@ -1,5 +1,4 @@
 scripts/
-docs/
 modules/__pycache__/
 modules/common/__pycache__
 modules/dataset_module/deprecated/
