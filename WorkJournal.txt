@@ -1,4 +1,4 @@
-03.02.2026: Began work on dissertation thessis
+03.02.2026: Began work on dissertation thesis
 06.02.2026: First batch of articles
 08.02.2026: Second pass at articles sources
 17-18.02.2026: Third pass at scientific articles in preparation
@@ -16,4 +16,34 @@ ResNet18, MobileNetv2/v3, SVM, RF, custom architecure, possibly GAN?
     - very good results obtained for jamming, less so for spoofing, which i expected
     - I need to tune the performance metrics a bit and make it more network agnostic 
     - technically I have a working prototype, I can begin writting
-    
+
+25.03-14.04.2026 - Add MobileNetv2, EffcientNetB0 as well as custom architecture
+    - do adversarial training  (optional)
+    - redo codebase to be more configurable
+    - add documentation for first stage
+    - 11.04.2026 added fusion to testing    
+    - 13.04.2026 documentation:
+        - chapter 1 (introduction):
+            * domain formulation (GNSS navigation and interferences)
+            * description of issues tackled
+            * opportunities of growth
+            * concrete paper structure (per chapter summary)
+        - chapter 2 (state of the art):
+            * neural network state of the art
+            * GNSS interference datasets state of the art
+            * neural networks in GNSS interference
+            (the various benchmark networks)
+            * description of embedded platform (Jetson Nano)
+        - chapter 3 (proposed solution):
+            * description of Datasets
+            * description of proposed neural network
+            * description of full radio pipeline for testing
+        - chapter 4 (results):
+            * results of training and testing and learning
+            * interpretation of results
+            * final experimental platform and results (comparison to GNSSLogger baseline)
+        - conclusions
+        - bibliography:
+        - annexes:
+            - SOTA table
+            - description of Jetson Nano
