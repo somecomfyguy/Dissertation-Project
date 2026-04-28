@@ -6,6 +6,5 @@ modules/dataset_module/datasets/
 modules/dataset_module/__pycache__
 modules/nn_module/deprecated/
 modules/nn_module/__pycache__
-Output/combined_spectrograms/
-Output/combined_spectrograms_no_fusion/
+Output/
 venv/

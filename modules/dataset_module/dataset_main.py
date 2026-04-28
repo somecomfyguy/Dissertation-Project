@@ -32,12 +32,12 @@ Output directory layout produced by save_dataset_streaming():
         normalization_stats.json
         metadata.json
 
-Class taxonomy (12 classes total):
+Class taxonomy (11 classes total):
     Jamming  (Swinney): clean, jam_am, jam_chirp, jam_fm, jam_dme,
                         jam_narrowband
     Spoofing (OAKBAT):  spoof_overpowered_instant, spoof_overpowered_gradual,
-                        spoof_matched_time, spoof_matched_dynamic,
-                        spoof_position_push, spoof_dynamic_position
+                        spoof_matched_time, spoof_dynamic,
+                        spoof_position_push
 """
 from pathlib import Path
 from typing import Optional
@@ -50,6 +50,10 @@ from modules.common.spectrogram import compute_spectrogram, SpectrogramNormalize
 from modules.common.features import compute_features, FeatureNormalizer
 from modules.dataset_module.process_oakbat import read_oakbat_chunk
 from modules.dataset_module.process_swinney import read_swinney_file
+from modules.dataset_module.process_texbat import read_texbat_chunk
+from modules.dataset_module.process_gateman import (
+    read_gateman_chunk, read_gateman_clean_chunk,
+)
 
 
 # Read IQ segment
@@ -57,24 +61,31 @@ def read_segment_iq(meta: Segment) -> np.ndarray:
     """
     Load the IQ data for a segment from disk, dispatching to the correct
     reader based on the originating dataset.
-
-    Args:
-        meta: A Segment (or SegmentMeta) object with at least source_file
-              and dataset fields populated.
-
-    Returns:
-        Complex64 numpy array of shape (num_samples,) for OAKBAT, or the
-        full-file IQ array for Swinney (whole-file segments).
     """
-    # If IQ data is already loaded in memory, use it directly
     if meta.data is not None:
         return meta.data
 
     if meta.dataset == "oakbat":
         return read_oakbat_chunk(meta.source_file, meta.start_sample,
-                                meta.num_samples)
+                                 meta.num_samples)
     elif meta.dataset == "swinney":
         return read_swinney_file(meta.source_file)
+    elif meta.dataset == "texbat":
+        return read_texbat_chunk(meta.source_file, meta.start_sample,
+                                 meta.num_samples)
+    elif meta.dataset == "gateman":
+        # scenario string encodes: "folder|jammer_path|jsr=XX"
+        parts      = meta.scenario.split("|")
+        jammer_path = parts[1]
+        jsr_str     = parts[2].split("=")[1]
+        jsr_db      = float(jsr_str)
+        return read_gateman_chunk(meta.source_file, jammer_path,
+                                  meta.start_sample, meta.num_samples,
+                                  jsr_db=jsr_db)
+    elif meta.dataset == "gateman_clean":
+        return read_gateman_clean_chunk(meta.source_file,
+                                        meta.start_sample,
+                                        meta.num_samples)
     else:
         raise ValueError(f"Unknown dataset: {meta.dataset}")
  
