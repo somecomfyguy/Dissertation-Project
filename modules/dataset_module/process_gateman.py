@@ -129,8 +129,15 @@ def read_gateman_chunk(gnss_path: str, jammer_path: str,
                        start_sample: int, num_samples: int,
                        jsr_db: float = 20.0) -> np.ndarray:
     """
-    Read a window from GATEMAN, mix GNSS+jammer at JSR, calibrate
-    amplitude to match OAKBAT/Swinney regime, then decimate to 5 MHz.
+    Read a window from GATEMAN, calibrate GNSS amplitude to match
+    OAKBAT regime, mix jammer at JSR on top, then decimate to 5 MHz.
+
+    Calibration order matters: the GNSS baseline is scaled to match
+    OAKBAT's amplitude regime BEFORE mixing, so that the jammer's
+    power is added at the correct absolute level relative to a
+    training-compatible GNSS signal. Calibrating after mixing would
+    compress or expand both components together, distorting the
+    spectral shape the classifier was trained on.
     """
     native_start = start_sample * DECIMATION_FACTOR
     native_count = num_samples  * DECIMATION_FACTOR
@@ -138,16 +145,21 @@ def read_gateman_chunk(gnss_path: str, jammer_path: str,
     gnss_raw   = _read_gateman_raw(gnss_path,   native_start, native_count)
     jammer_raw = _read_gateman_raw(jammer_path,  native_start, native_count)
 
-    mixed = mix_at_jsr(gnss_raw, jammer_raw, jsr_db)
-
-    # Amplitude calibration: GATEMAN uses only ~0.04% of the int16 dynamic
-    # range (values ±10–15 out of ±32768). Scale the COMBINED signal to
-    # match OAKBAT's amplitude regime so the saved spectrogram normaliser
-    # produces values in the trained range.
-    rms = np.sqrt(np.mean(np.abs(mixed) ** 2))
-    if rms > 1e-6:
+    # Calibrate GNSS to OAKBAT amplitude regime BEFORE mixing
+    gnss_rms = np.sqrt(np.mean(np.abs(gnss_raw) ** 2))
+    if gnss_rms > 1e-6:
         target_rms = 2300.0
-        mixed *= (target_rms / rms)
+        gnss_raw *= (target_rms / gnss_rms)
+
+    # Scale jammer to match the same calibration ratio so JSR
+    # computation in mix_at_jsr operates on consistent amplitudes
+    jammer_rms = np.sqrt(np.mean(np.abs(jammer_raw) ** 2))
+    if jammer_rms > 1e-6:
+        jammer_raw *= (target_rms / jammer_rms)
+
+    # Now mix at the requested JSR — both signals are in the same
+    # amplitude regime, so the JSR is physically meaningful
+    mixed = mix_at_jsr(gnss_raw, jammer_raw, jsr_db)
 
     decimated = polyphase_decimate(mixed, DECIMATION_FACTOR)
     return decimated[:num_samples]
