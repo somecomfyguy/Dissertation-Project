@@ -1,0 +1,12 @@
+{
+  "model": "fusion_efficientnetb0",
+  "jsr_db": 20.0,
+  "test_accuracy": 0.0,
+  "test_loss": 278.6825401509603,
+  "num_samples": 1500,
+  "classes_present": [
+    "clean",
+    "jam_am",
+    "jam_chirp"
+  ]
+}

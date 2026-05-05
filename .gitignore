@@ -6,5 +6,13 @@ modules/dataset_module/datasets/
 modules/dataset_module/__pycache__
 modules/nn_module/deprecated/
 modules/nn_module/__pycache__
-Output/
+Output/combined_spectrograms/
+Output/combined_spectrograms_no_fusion/
+Output/combined_spectrograms_perimage/
+Output/combined_spectrograms_perimage_aug/
+Output/domain_gap_diagnostic/
+Output/gateman_spectrograms/
+Output/gateman_spectrograms_perimage/
+Output/texbat_spectrograms/
+Output/texbat_spectrograms_perimage/
 venv/

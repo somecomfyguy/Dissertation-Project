@@ -1,0 +1,12 @@
+{
+  "model": "custom_cnn",
+  "jsr_db": 20.0,
+  "test_accuracy": 0.0,
+  "test_loss": 15.631519744873048,
+  "num_samples": 1500,
+  "classes_present": [
+    "clean",
+    "jam_am",
+    "jam_chirp"
+  ]
+}

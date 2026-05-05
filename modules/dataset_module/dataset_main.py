@@ -171,9 +171,10 @@ def save_dataset_streaming(splits: dict,
                            output_dir: str,
                            fs: float,
                            stft_params: STFTParams,
-                           spec_normalizer: SpectrogramNormalizer,
+                           spec_normalizer: Optional[SpectrogramNormalizer] = None,
                            feat_normalizer: Optional[FeatureNormalizer] = None,
-                           save_format: str = "npy") -> None:
+                           save_format: str = "npy",
+                           norm_mode: str = "global") -> None:
     """
     Stream all splits to disk as normalised spectrograms and (optionally)
     feature vectors, one segment at a time.
@@ -205,6 +206,7 @@ def save_dataset_streaming(splits: dict,
             "log_scale":   stft_params.log_scale,
         },
         "features_saved": save_features,
+        "norm_mode": norm_mode,
         "splits": {},
     }
 
@@ -216,7 +218,12 @@ def save_dataset_streaming(splits: dict,
         for i, meta in enumerate(segments):
             iq   = read_segment_iq(meta)
             spec = compute_spectrogram(iq, fs, stft_params)
-            spec = spec_normalizer.transform(spec)
+
+            if norm_mode == "global" and spec_normalizer is not None:
+                spec = spec_normalizer.transform(spec)
+            elif norm_mode == "perimage":
+                lo, hi = spec.min(), spec.max()
+                spec = ((spec - lo) / (hi - lo + 1e-10)).astype(np.float32)
 
             label_dir = split_dir / meta.label
             label_dir.mkdir(parents=True, exist_ok=True)
@@ -250,7 +257,14 @@ def save_dataset_streaming(splits: dict,
 
     with open(out / "metadata.json", "w") as f:
         json.dump(metadata, f, indent=2)
-    spec_normalizer.save(str(out / "normalization_stats.json"))
+    if spec_normalizer is not None:
+        spec_normalizer.save(str(out / "normalization_stats.json"))
+    else:
+        # Save a marker so eval scripts know per-image was used
+        import json as _json
+        with open(out / "normalization_stats.json", "w") as f:
+            _json.dump({"mode": "perimage", "mean": None, "std": None}, f)
+        print(f"[Save] Per-image normalisation — no global stats to save")
     if save_features:
         feat_normalizer.save(str(out / "feature_norm_stats.json"))
     print(f"\n[Save] Dataset written to {out}")

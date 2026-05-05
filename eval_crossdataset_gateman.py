@@ -50,7 +50,7 @@ GATEMAN_DATASET_PATH = "./modules/dataset_module/datasets/GatemanJamming"
 TRAINED_NORM_DIR     = "./Output/combined_spectrograms"
 GATEMAN_SPEC_BASE    = "./Output/gateman_spectrograms_perimage"
 TRAINED_MODEL_BASE   = "./Output/results_11classes_regularized_fusion"
-RESULTS_BASE_DIR     = "./Output/gateman_eval_results"
+RESULTS_BASE_DIR     = "./Output/gateman_eval_results_per_image_augment"
 
 
 def prepare_gateman(jsr_db: float,
