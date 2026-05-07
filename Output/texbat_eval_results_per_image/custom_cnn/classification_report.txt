@@ -1,0 +1,39 @@
+TEXBAT Zero-Shot Evaluation — custom_cnn
+============================================================
+Samples:  179721
+Accuracy: 0.0045
+Loss:     3.5804
+
+=== TEXBAT classes only ===
+                           precision    recall  f1-score   support
+
+                    clean     0.9882    0.0021    0.0041     81543
+            spoof_dynamic     0.3091    0.0197    0.0370     32131
+       spoof_matched_time     0.0000    0.0000    0.0000     16947
+spoof_overpowered_gradual     0.1515    0.0009    0.0017     17353
+spoof_overpowered_instant     0.0000    0.0000    0.0000     16835
+      spoof_position_push     0.0000    0.0000    0.0000     14912
+
+                micro avg     0.3522    0.0045    0.0090    179721
+                macro avg     0.2415    0.0038    0.0071    179721
+             weighted avg     0.5183    0.0045    0.0087    179721
+
+
+=== Full 11-class ===
+                           precision    recall  f1-score   support
+
+                    clean     0.9882    0.0021    0.0041     81543
+                   jam_am     0.0000    0.0000    0.0000         0
+                jam_chirp     0.0000    0.0000    0.0000         0
+                  jam_dme     0.0000    0.0000    0.0000         0
+                   jam_fm     0.0000    0.0000    0.0000         0
+           jam_narrowband     0.0000    0.0000    0.0000         0
+            spoof_dynamic     0.3091    0.0197    0.0370     32131
+       spoof_matched_time     0.0000    0.0000    0.0000     16947
+spoof_overpowered_gradual     0.1515    0.0009    0.0017     17353
+spoof_overpowered_instant     0.0000    0.0000    0.0000     16835
+      spoof_position_push     0.0000    0.0000    0.0000     14912
+
+                 accuracy                         0.0045    179721
+                macro avg     0.1317    0.0021    0.0039    179721
+             weighted avg     0.5183    0.0045    0.0087    179721

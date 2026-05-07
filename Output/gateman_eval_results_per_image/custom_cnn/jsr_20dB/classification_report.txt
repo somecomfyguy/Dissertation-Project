@@ -1,0 +1,36 @@
+GATEMAN — custom_cnn — JSR=20.0 dB
+============================================================
+Samples:  35388
+Accuracy: 0.0000
+Loss: 11.8997
+
+=== GATEMAN classes ===
+              precision    recall  f1-score   support
+
+       clean     0.0000    0.0000    0.0000   17694.0
+      jam_am     0.0000    0.0000    0.0000    5898.0
+   jam_chirp     0.0000    0.0000    0.0000   11796.0
+
+   micro avg     0.0000    0.0000    0.0000   35388.0
+   macro avg     0.0000    0.0000    0.0000   35388.0
+weighted avg     0.0000    0.0000    0.0000   35388.0
+
+=== Full 11-class ===
+                           precision    recall  f1-score   support
+
+                    clean     0.0000    0.0000    0.0000   17694.0
+                   jam_am     0.0000    0.0000    0.0000    5898.0
+                jam_chirp     0.0000    0.0000    0.0000   11796.0
+                  jam_dme     0.0000    0.0000    0.0000       0.0
+                   jam_fm     0.0000    0.0000    0.0000       0.0
+           jam_narrowband     0.0000    0.0000    0.0000       0.0
+            spoof_dynamic     0.0000    0.0000    0.0000       0.0
+       spoof_matched_time     0.0000    0.0000    0.0000       0.0
+spoof_overpowered_gradual     0.0000    0.0000    0.0000       0.0
+spoof_overpowered_instant     0.0000    0.0000    0.0000       0.0
+      spoof_position_push     0.0000    0.0000    0.0000       0.0
+
+                 accuracy                         0.0000   35388.0
+                macro avg     0.0000    0.0000    0.0000   35388.0
+             weighted avg     0.0000    0.0000    0.0000   35388.0
+
