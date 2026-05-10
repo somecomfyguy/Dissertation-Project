@@ -47,3 +47,7 @@ ResNet18, MobileNetv2/v3, SVM, RF, custom architecure, possibly GAN?
         - annexes:
             - SOTA table
             - description of Jetson Nano
+15.04.2026-15.05.2026
+    - finishing up documentation
+    - added MobileNetv2 and EfficientNet, developped custom architecture
+    - tested fusion with multi layer perceptron, tested cross-dataset validation

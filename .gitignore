@@ -15,4 +15,5 @@ Output/gateman_spectrograms/
 Output/gateman_spectrograms_perimage/
 Output/texbat_spectrograms/
 Output/texbat_spectrograms_perimage/
+Output/combined_spectrograms_mixed
 venv/

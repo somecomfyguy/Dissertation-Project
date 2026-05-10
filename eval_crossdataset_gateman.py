@@ -47,10 +47,10 @@ from modules.nn_module.fusion_model import build_fusion_model
 
 # Paths
 GATEMAN_DATASET_PATH = "./modules/dataset_module/datasets/GatemanJamming"
-TRAINED_NORM_DIR     = "./Output/combined_spectrograms"
+TRAINED_NORM_DIR     = "./Output/combined_spectrograms_mixed"
 GATEMAN_SPEC_BASE    = "./Output/gateman_spectrograms_perimage"
-TRAINED_MODEL_BASE   = "./Output/results_11classes_regularized_perimage"
-RESULTS_BASE_DIR     = "./Output/gateman_eval_results_per_image"
+TRAINED_MODEL_BASE   = "./Output/results_11classes_mixed"
+RESULTS_BASE_DIR     = "./Output/gateman_eval_results_mixed"
 
 
 def prepare_gateman(jsr_db: float,

@@ -64,10 +64,10 @@ from modules.nn_module.fusion_model import build_fusion_model
 
 # Paths
 TEXBAT_DATASET_PATH = "./modules/dataset_module/datasets/TexbatSpoofing"
-TRAINED_NORM_DIR    = "./Output/combined_spectrograms"
+TRAINED_NORM_DIR    = "./Output/combined_spectrograms_mixed"
 TEXBAT_SPEC_DIR     = "./Output/texbat_spectrograms_perimage"
-TRAINED_MODEL_BASE  = "./Output/results_11classes_regularized_perimage"
-RESULTS_BASE_DIR    = "./Output/texbat_eval_results_per_image"
+TRAINED_MODEL_BASE  = "./Output/results_11classes_mixed"
+RESULTS_BASE_DIR    = "./Output/texbat_eval_results_mixed"
 
 
 def prepare_texbat(texbat_dir:       str = TEXBAT_DATASET_PATH,

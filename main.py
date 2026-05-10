@@ -53,9 +53,9 @@ OAKBAT_DATASET_PATH  = "./modules/dataset_module/datasets/OakbatSpoofing"
 SWINNEY_DATASET_PATH = "./modules/dataset_module/datasets/SwinneyJamming"
 # SPECTROGRAM_DIR      = "./Output/combined_spectrograms/"
 # SPECTROGRAM_DIR = "./Output/combined_spectrograms_perimage"  # for normalisation effect run
-SPECTROGRAM_DIR = "./Output/combined_spectrograms_perimage_aug"    # for per-image norm + augmentation 
+SPECTROGRAM_DIR = "./Output/combined_spectrograms_mixed"    # for per-image norm + augmentation 
 # SPECTROGRAM_DIR = "./Output/combined_spectrograms_mixed"           # for per-image norm + augment + mixed domain
-OUTPUT_DIR           = "./Output/results_11classes_regularized_perimage"
+OUTPUT_DIR           = "./Output/results_11classes_mixed"
 
 
 # Prepare dataset
