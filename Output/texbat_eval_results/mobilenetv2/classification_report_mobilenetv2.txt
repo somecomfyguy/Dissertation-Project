@@ -1,0 +1,39 @@
+TEXBAT Zero-Shot Evaluation — mobilenetv2
+============================================================
+Samples:  179721
+Accuracy: 0.1903
+Loss:     3.7880
+
+=== TEXBAT classes only ===
+                           precision    recall  f1-score   support
+
+                    clean     0.3402    0.0089    0.0173     81543
+            spoof_dynamic     0.1965    1.0000    0.3284     32131
+       spoof_matched_time     0.0000    0.0000    0.0000     16947
+spoof_overpowered_gradual     0.0000    0.0000    0.0000     17353
+spoof_overpowered_instant     0.9993    0.0802    0.1486     16835
+      spoof_position_push     0.0000    0.0000    0.0000     14912
+
+                micro avg     0.1998    0.1903    0.1950    179721
+                macro avg     0.2560    0.1815    0.0824    179721
+             weighted avg     0.2831    0.1903    0.0805    179721
+
+
+=== Full 11-class ===
+                           precision    recall  f1-score   support
+
+                    clean     0.3402    0.0089    0.0173     81543
+                   jam_am     0.0000    0.0000    0.0000         0
+                jam_chirp     0.0000    0.0000    0.0000         0
+                  jam_dme     0.0000    0.0000    0.0000         0
+                   jam_fm     0.0000    0.0000    0.0000         0
+           jam_narrowband     0.0000    0.0000    0.0000         0
+            spoof_dynamic     0.1965    1.0000    0.3284     32131
+       spoof_matched_time     0.0000    0.0000    0.0000     16947
+spoof_overpowered_gradual     0.0000    0.0000    0.0000     17353
+spoof_overpowered_instant     0.9993    0.0802    0.1486     16835
+      spoof_position_push     0.0000    0.0000    0.0000     14912
+
+                 accuracy                         0.1903    179721
+                macro avg     0.1396    0.0990    0.0449    179721
+             weighted avg     0.2831    0.1903    0.0805    179721

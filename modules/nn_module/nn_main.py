@@ -199,7 +199,8 @@ def plot_confusion_matrix(
         title:        Title string displayed above the matrix.
     """
 
-    cm = confusion_matrix(y_true, y_pred)
+    n_classes = len(class_names)
+    cm = confusion_matrix(y_true, y_pred, labels=list(range(n_classes)))
     fig, ax = plt.subplots(
         figsize=(max(8, len(class_names)), max(6, len(class_names) * 0.8))
     )

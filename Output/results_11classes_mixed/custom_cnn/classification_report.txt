@@ -1,0 +1,21 @@
+Test Accuracy: 0.8903
+Test Loss: 0.8518
+Best Epoch: 37
+
+                           precision    recall  f1-score   support
+
+                    clean     1.0000    0.1000    0.1818       150
+                   jam_am     0.9863    0.9600    0.9730       150
+                jam_chirp     1.0000    0.8867    0.9399       150
+                  jam_dme     0.9259    1.0000    0.9615       150
+                   jam_fm     0.9732    0.9667    0.9699       150
+           jam_narrowband     0.8970    0.9867    0.9397       150
+            spoof_dynamic     0.8563    0.9533    0.9022       150
+       spoof_matched_time     0.9551    0.9933    0.9739       150
+spoof_overpowered_gradual     0.9603    0.9667    0.9635       150
+spoof_overpowered_instant     0.5906    1.0000    0.7426       150
+      spoof_position_push     0.9671    0.9800    0.9735       150
+
+                 accuracy                         0.8903      1650
+                macro avg     0.9192    0.8903    0.8656      1650
+             weighted avg     0.9192    0.8903    0.8656      1650

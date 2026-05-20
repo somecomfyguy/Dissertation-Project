@@ -32,12 +32,12 @@ Output directory layout produced by save_dataset_streaming():
         normalization_stats.json
         metadata.json
 
-Class taxonomy (12 classes total):
+Class taxonomy (11 classes total):
     Jamming  (Swinney): clean, jam_am, jam_chirp, jam_fm, jam_dme,
                         jam_narrowband
     Spoofing (OAKBAT):  spoof_overpowered_instant, spoof_overpowered_gradual,
-                        spoof_matched_time, spoof_matched_dynamic,
-                        spoof_position_push, spoof_dynamic_position
+                        spoof_matched_time, spoof_dynamic,
+                        spoof_position_push
 """
 from pathlib import Path
 from typing import Optional
@@ -50,6 +50,10 @@ from modules.common.spectrogram import compute_spectrogram, SpectrogramNormalize
 from modules.common.features import compute_features, FeatureNormalizer
 from modules.dataset_module.process_oakbat import read_oakbat_chunk
 from modules.dataset_module.process_swinney import read_swinney_file
+from modules.dataset_module.process_texbat import read_texbat_chunk
+from modules.dataset_module.process_gateman import (
+    read_gateman_chunk, read_gateman_clean_chunk,
+)
 
 
 # Read IQ segment
@@ -57,24 +61,31 @@ def read_segment_iq(meta: Segment) -> np.ndarray:
     """
     Load the IQ data for a segment from disk, dispatching to the correct
     reader based on the originating dataset.
-
-    Args:
-        meta: A Segment (or SegmentMeta) object with at least source_file
-              and dataset fields populated.
-
-    Returns:
-        Complex64 numpy array of shape (num_samples,) for OAKBAT, or the
-        full-file IQ array for Swinney (whole-file segments).
     """
-    # If IQ data is already loaded in memory, use it directly
     if meta.data is not None:
         return meta.data
 
     if meta.dataset == "oakbat":
         return read_oakbat_chunk(meta.source_file, meta.start_sample,
-                                meta.num_samples)
+                                 meta.num_samples)
     elif meta.dataset == "swinney":
         return read_swinney_file(meta.source_file)
+    elif meta.dataset == "texbat":
+        return read_texbat_chunk(meta.source_file, meta.start_sample,
+                                 meta.num_samples)
+    elif meta.dataset == "gateman":
+        # scenario string encodes: "folder|jammer_path|jsr=XX"
+        parts      = meta.scenario.split("|")
+        jammer_path = parts[1]
+        jsr_str     = parts[2].split("=")[1]
+        jsr_db      = float(jsr_str)
+        return read_gateman_chunk(meta.source_file, jammer_path,
+                                  meta.start_sample, meta.num_samples,
+                                  jsr_db=jsr_db)
+    elif meta.dataset == "gateman_clean":
+        return read_gateman_clean_chunk(meta.source_file,
+                                        meta.start_sample,
+                                        meta.num_samples)
     else:
         raise ValueError(f"Unknown dataset: {meta.dataset}")
  
@@ -160,9 +171,10 @@ def save_dataset_streaming(splits: dict,
                            output_dir: str,
                            fs: float,
                            stft_params: STFTParams,
-                           spec_normalizer: SpectrogramNormalizer,
+                           spec_normalizer: Optional[SpectrogramNormalizer] = None,
                            feat_normalizer: Optional[FeatureNormalizer] = None,
-                           save_format: str = "npy") -> None:
+                           save_format: str = "npy",
+                           norm_mode: str = "global") -> None:
     """
     Stream all splits to disk as normalised spectrograms and (optionally)
     feature vectors, one segment at a time.
@@ -194,6 +206,7 @@ def save_dataset_streaming(splits: dict,
             "log_scale":   stft_params.log_scale,
         },
         "features_saved": save_features,
+        "norm_mode": norm_mode,
         "splits": {},
     }
 
@@ -205,7 +218,12 @@ def save_dataset_streaming(splits: dict,
         for i, meta in enumerate(segments):
             iq   = read_segment_iq(meta)
             spec = compute_spectrogram(iq, fs, stft_params)
-            spec = spec_normalizer.transform(spec)
+
+            if norm_mode == "global" and spec_normalizer is not None:
+                spec = spec_normalizer.transform(spec)
+            elif norm_mode == "perimage":
+                lo, hi = spec.min(), spec.max()
+                spec = ((spec - lo) / (hi - lo + 1e-10)).astype(np.float32)
 
             label_dir = split_dir / meta.label
             label_dir.mkdir(parents=True, exist_ok=True)
@@ -239,7 +257,14 @@ def save_dataset_streaming(splits: dict,
 
     with open(out / "metadata.json", "w") as f:
         json.dump(metadata, f, indent=2)
-    spec_normalizer.save(str(out / "normalization_stats.json"))
+    if spec_normalizer is not None:
+        spec_normalizer.save(str(out / "normalization_stats.json"))
+    else:
+        # Save a marker so eval scripts know per-image was used
+        import json as _json
+        with open(out / "normalization_stats.json", "w") as f:
+            _json.dump({"mode": "perimage", "mean": None, "std": None}, f)
+        print(f"[Save] Per-image normalisation — no global stats to save")
     if save_features:
         feat_normalizer.save(str(out / "feature_norm_stats.json"))
     print(f"\n[Save] Dataset written to {out}")

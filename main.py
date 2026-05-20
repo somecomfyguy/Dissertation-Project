@@ -45,29 +45,44 @@ from modules.common.features import FeatureNormalizer
 from modules.dataset_module.dataset_main import compute_feature_normalization
 from modules.nn_module.fusion_model import build_fusion_model
 
+from modules.dataset_module.process_texbat import scan_texbat_segments
+from modules.dataset_module.process_gateman import scan_gateman_segments
+
 # Paths
 OAKBAT_DATASET_PATH  = "./modules/dataset_module/datasets/OakbatSpoofing"
 SWINNEY_DATASET_PATH = "./modules/dataset_module/datasets/SwinneyJamming"
-SPECTROGRAM_DIR      = "./Output/combined_spectrograms"
-OUTPUT_DIR           = "./Output/results_11classes_regularized_fusion"
+# SPECTROGRAM_DIR      = "./Output/combined_spectrograms/"
+# SPECTROGRAM_DIR = "./Output/combined_spectrograms_perimage"  # for normalisation effect run
+SPECTROGRAM_DIR = "./Output/combined_spectrograms_mixed"    # for per-image norm + augmentation 
+# SPECTROGRAM_DIR = "./Output/combined_spectrograms_mixed"           # for per-image norm + augment + mixed domain
+OUTPUT_DIR           = "./Output/results_11classes_mixed"
 
 
 # Prepare dataset
 def prepare_datasets(oakbat_dir: str = OAKBAT_DATASET_PATH,
                      swinney_dir: str = SWINNEY_DATASET_PATH,
                      output_dir: str = SPECTROGRAM_DIR,
-                     max_per_class: int = 1000):
+                     max_per_class: int = 1000,
+                     norm_mode: str = "global",
+                     texbat_dir: str = None,
+                     texbat_fraction: float = 0.1,
+                     gateman_dir: str = None,
+                     gateman_fraction: float = 0.1,
+                     gateman_jsr: float = 20.0):
     """
-    Load raw IQ from both datasets, segment, split, normalize, and save
-    spectrograms to disk.
+    Load raw IQ from datasets, segment, split, normalize, and save.
+
+    When texbat_dir or gateman_dir are provided, a fraction of their
+    segments are included in the training set for mixed-domain training.
     """
     stft_params = STFTParams()
+    rng = np.random.default_rng(42)
 
-    # ── Step 1: Scan OAKBAT (metadata only, no IQ loaded) ─────────
+    # ── Step 1: Scan OAKBAT ───────────────────────────────────────
     print("Scanning OAKBAT segments (metadata only)...")
     oakbat_segments = scan_oakbat_segments(oakbat_dir)
 
-    # ── Step 2: Load Swinney ───────────────────────────────────────────
+    # ── Step 2: Load Swinney ──────────────────────────────────────
     swinney_segments = []
     for split in ["training", "testing"]:
         try:
@@ -76,33 +91,61 @@ def prepare_datasets(oakbat_dir: str = OAKBAT_DATASET_PATH,
         except FileNotFoundError:
             print(f"  [Note] Swinney {split} not found, skipping")
 
-    print(f"\nTotal: {len(oakbat_segments)} OAKBAT + "
+    print(f"\nBase datasets: {len(oakbat_segments)} OAKBAT + "
           f"{len(swinney_segments)} Swinney segments")
 
-    # ── Step 3: Combine and split ──────────────────────────────────────
-    combined = oakbat_segments + swinney_segments
+    # ── Step 3: Mixed-domain inclusion ─────────────────────────────
+    mixed_segments = []
+
+    if texbat_dir is not None:
+        print(f"\n[Mixed] Including {texbat_fraction*100:.0f}% of TEXBAT...")
+        texbat_all = scan_texbat_segments(texbat_dir)
+        n_include = int(len(texbat_all) * texbat_fraction)
+        idx = rng.permutation(len(texbat_all))[:n_include]
+        texbat_subset = [texbat_all[i] for i in idx]
+        mixed_segments.extend(texbat_subset)
+        print(f"  Added {len(texbat_subset)} TEXBAT segments")
+
+    if gateman_dir is not None:
+        print(f"\n[Mixed] Including {gateman_fraction*100:.0f}% of GATEMAN "
+              f"at JSR={gateman_jsr} dB...")
+        gateman_all = scan_gateman_segments(gateman_dir, jsr_db=gateman_jsr)
+        n_include = int(len(gateman_all) * gateman_fraction)
+        idx = rng.permutation(len(gateman_all))[:n_include]
+        gateman_subset = [gateman_all[i] for i in idx]
+        mixed_segments.extend(gateman_subset)
+        print(f"  Added {len(gateman_subset)} GATEMAN segments")
+
+    # ── Step 4: Combine and split ─────────────────────────────────
+    combined = oakbat_segments + swinney_segments + mixed_segments
     splits = create_splits(combined, balance_classes=True,
                            max_per_class=max_per_class)
 
-    # ── Step 4: Joint spectrogram normalization (training split only) ──
+    # ── Step 5: Normalisation ─────────────────────────────────────
     os.makedirs(output_dir, exist_ok=True)
-    spec_normalizer = compute_joint_normalization(
-        [s for s in splits["train"] if s.dataset == "oakbat"],
-        [s for s in splits["train"] if s.dataset == "swinney"],
-        stft_params,
-        output_path=os.path.join(output_dir, "normalization_stats.json"),
-    )
 
-    # ── Step 5: Feature normalization (training split only) ────────────
+    if norm_mode == "global":
+        spec_normalizer = compute_joint_normalization(
+            [s for s in splits["train"] if s.dataset == "oakbat"],
+            [s for s in splits["train"] if s.dataset == "swinney"],
+            stft_params,
+            output_path=os.path.join(output_dir, "normalization_stats.json"),
+        )
+    else:
+        spec_normalizer = None
+        print("[Norm] Using per-image min-max normalisation (no global stats)")
+
+    # ── Step 6: Feature normalization ─────────────────────────────
     feat_normalizer = compute_feature_normalization(
         splits["train"],
         fs=SAMPLE_RATE,
         output_path=os.path.join(output_dir, "feature_norm_stats.json"),
     )
 
-    # ── Step 6: Save spectrograms + features ───────────────────────────
+    # ── Step 7: Save spectrograms + features ──────────────────────
     save_dataset_streaming(splits, output_dir, SAMPLE_RATE,
-                           stft_params, spec_normalizer, feat_normalizer)
+                           stft_params, spec_normalizer, feat_normalizer,
+                           norm_mode=norm_mode)
     
 
 # Training and evaluation
@@ -112,6 +155,7 @@ def run_training(
     model_name: str = "resnet18",
     fusion: bool = False,
     backbone_name: str = "resnet18",
+    augment: bool = False,
     epochs: int = 20,
     batch_size: int = 32,
     lr: float = 1e-3,
@@ -143,7 +187,8 @@ def run_training(
     # ── Datasets ───────────────────────────────────────────────────────
     print("\nLoading datasets...")
     train_dataset = SpectrogramDataset(str(data_path / "train"),
-                                       load_features=fusion)
+                                       load_features=fusion,
+                                       augment=augment)
     class_to_idx  = train_dataset.class_to_idx
 
     val_dataset  = SpectrogramDataset(str(data_path / "val"),  class_to_idx,
@@ -316,28 +361,41 @@ def run_training(
 def main():
     parser = argparse.ArgumentParser(
         description="GNSS Interference Classification Pipeline")
-    parser.add_argument("--skip-prepare", action="store_true",
-                        help="Skip dataset preparation (spectrograms exist)")
-    parser.add_argument("--prepare-only", action="store_true",
-                        help="Only prepare dataset, do not train")
+    parser.add_argument("--skip-prepare", action="store_true")
+    parser.add_argument("--prepare-only", action="store_true")
     parser.add_argument("--epochs", type=int, default=20)
     parser.add_argument("--batch-size", type=int, default=32)
     parser.add_argument("--lr", type=float, default=1e-3)
     parser.add_argument("--device", type=str, default="auto")
     parser.add_argument("--model", type=str, default="resnet18",
-                        choices=["resnet18", "mobilenetv2", 
-                                 "efficientnetb0", "custom_cnn"],
-                        help="Model architecture to train")
-    parser.add_argument("--fusion", action="store_true",
-                        help="Use spectrogram + feature fusion model")
+                        choices=["resnet18", "mobilenetv2",
+                                 "efficientnetb0", "custom_cnn"])
+    parser.add_argument("--fusion", action="store_true")
     parser.add_argument("--backbone", type=str, default="resnet18",
                         choices=["resnet18", "mobilenetv2",
-                                 "efficientnetb0", "custom_cnn"],
-                        help="CNN backbone for fusion model")
+                                 "efficientnetb0", "custom_cnn"])
+    # New flags
+    parser.add_argument("--norm-mode", type=str, default="global",
+                        choices=["global", "perimage"],
+                        help="Spectrogram normalisation strategy")
+    parser.add_argument("--augment", action="store_true",
+                        help="Apply spectrogram augmentation during training")
+    parser.add_argument("--mix-texbat", type=str, default=None,
+                        help="Path to TEXBAT root for mixed-domain training")
+    parser.add_argument("--mix-gateman", type=str, default=None,
+                        help="Path to GATEMAN root for mixed-domain training")
+    parser.add_argument("--mix-fraction", type=float, default=0.1,
+                        help="Fraction of cross-dataset to include (default 10%%)")
     args = parser.parse_args()
 
     if not args.skip_prepare:
-        prepare_datasets()
+        prepare_datasets(
+            norm_mode=args.norm_mode,
+            texbat_dir=args.mix_texbat,
+            texbat_fraction=args.mix_fraction,
+            gateman_dir=args.mix_gateman,
+            gateman_fraction=args.mix_fraction,
+        )
 
     if not args.prepare_only:
         if args.fusion:
@@ -346,6 +404,7 @@ def main():
             output_dir = os.path.join(OUTPUT_DIR, args.model)
         run_training(model_name=args.model, fusion=args.fusion,
                      backbone_name=args.backbone, output_dir=output_dir,
+                     augment=args.augment,
                      epochs=args.epochs, batch_size=args.batch_size,
                      lr=args.lr, device_str=args.device)
 

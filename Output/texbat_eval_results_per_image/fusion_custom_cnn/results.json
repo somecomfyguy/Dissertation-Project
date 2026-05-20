@@ -1,0 +1,14 @@
+{
+  "model": "fusion_custom_cnn",
+  "test_accuracy": 0.021611275254422132,
+  "test_loss": 3.030444303445256,
+  "num_samples": 179721,
+  "texbat_classes_present": [
+    "clean",
+    "spoof_dynamic",
+    "spoof_matched_time",
+    "spoof_overpowered_gradual",
+    "spoof_overpowered_instant",
+    "spoof_position_push"
+  ]
+}

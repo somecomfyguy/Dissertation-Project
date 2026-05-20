@@ -1,0 +1,14 @@
+{
+  "model": "resnet18",
+  "test_accuracy": 0.19703874338558097,
+  "test_loss": 4.079604926376677,
+  "num_samples": 179721,
+  "texbat_classes_present": [
+    "clean",
+    "spoof_dynamic",
+    "spoof_matched_time",
+    "spoof_overpowered_gradual",
+    "spoof_overpowered_instant",
+    "spoof_position_push"
+  ]
+}

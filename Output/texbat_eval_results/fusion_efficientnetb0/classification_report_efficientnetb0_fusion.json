@@ -1,0 +1,14 @@
+{
+  "model": "fusion_efficientnetb0",
+  "test_accuracy": 0.25298657363357646,
+  "test_loss": 3.288830112318757,
+  "num_samples": 179721,
+  "texbat_classes_present": [
+    "clean",
+    "spoof_dynamic",
+    "spoof_matched_time",
+    "spoof_overpowered_gradual",
+    "spoof_overpowered_instant",
+    "spoof_position_push"
+  ]
+}
