@@ -1,0 +1,11 @@
+linux; GNU C++ version 7.3.0; Boost_106501; UHD_003.010.003.000-0-unknown
+
+Initializing GNSS-SDR v0.0.21 ... Please wait.
+Logging will be written at "/tmp"
+Use gnss-sdr --log_dir=/path/to/log to change that.
+RF Channels: 1
+gr::log :WARN: file_source0 - WARNING: File will not be fully consumed with the current output type
+E0520 23:53:35.781580  7979 gnss_flowgraph.cc:722] Can't connect signal source block 0 internally: boost::filesystem::file_size: Operation not permitted: "/tmp/gnss_iq_fifo"
+Unable to connect flowgraph
+Total GNSS-SDR run time: 7.24158 [seconds]
+GNSS-SDR program ended.

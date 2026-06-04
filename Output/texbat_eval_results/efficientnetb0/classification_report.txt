@@ -1,0 +1,39 @@
+TEXBAT Zero-Shot Evaluation — efficientnetb0
+============================================================
+Samples:  179721
+Accuracy: 0.3206
+Loss:     2.6814
+
+=== TEXBAT classes only ===
+                           precision    recall  f1-score   support
+
+                    clean     0.7628    0.2847    0.4147     81543
+            spoof_dynamic     0.2733    0.6406    0.3831     32131
+       spoof_matched_time     0.0034    0.0001    0.0001     16947
+spoof_overpowered_gradual     0.0000    0.0000    0.0000     17353
+spoof_overpowered_instant     0.3891    0.8206    0.5278     16835
+      spoof_position_push     0.0465    0.0001    0.0003     14912
+
+                micro avg     0.4068    0.3206    0.3586    179721
+                macro avg     0.2458    0.2910    0.2210    179721
+             weighted avg     0.4356    0.3206    0.3061    179721
+
+
+=== Full 11-class ===
+                           precision    recall  f1-score   support
+
+                    clean     0.7628    0.2847    0.4147     81543
+                   jam_am     0.0000    0.0000    0.0000         0
+                jam_chirp     0.0000    0.0000    0.0000         0
+                  jam_dme     0.0000    0.0000    0.0000         0
+                   jam_fm     0.0000    0.0000    0.0000         0
+           jam_narrowband     0.0000    0.0000    0.0000         0
+            spoof_dynamic     0.2733    0.6406    0.3831     32131
+       spoof_matched_time     0.0034    0.0001    0.0001     16947
+spoof_overpowered_gradual     0.0000    0.0000    0.0000     17353
+spoof_overpowered_instant     0.3891    0.8206    0.5278     16835
+      spoof_position_push     0.0465    0.0001    0.0003     14912
+
+                 accuracy                         0.3206    179721
+                macro avg     0.1341    0.1587    0.1205    179721
+             weighted avg     0.4356    0.3206    0.3061    179721
