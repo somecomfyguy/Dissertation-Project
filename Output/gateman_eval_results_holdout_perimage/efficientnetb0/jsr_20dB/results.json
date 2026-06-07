@@ -1,0 +1,15 @@
+{
+  "model": "efficientnetb0",
+  "jsr_db": 20.0,
+  "test_accuracy": 0.8188700564971751,
+  "test_loss": 1.0027389715350954,
+  "num_samples": 17700,
+  "classes_present": [
+    "clean",
+    "jam_am",
+    "jam_chirp"
+  ],
+  "majority_baseline": 0.5,
+  "majority_class": "clean",
+  "beats_baseline": true
+}

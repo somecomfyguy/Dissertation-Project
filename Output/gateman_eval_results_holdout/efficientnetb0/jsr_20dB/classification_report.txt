@@ -1,0 +1,36 @@
+GATEMAN — efficientnetb0 — JSR=20.0 dB
+============================================================
+Samples:  17700
+Accuracy: 0.0245
+Loss: 77.4287
+
+=== GATEMAN classes ===
+              precision    recall  f1-score   support
+
+       clean     0.0000    0.0000    0.0000      8850
+      jam_am     0.7500    0.0020    0.0041      2950
+   jam_chirp     0.7242    0.0725    0.1319      5900
+
+   micro avg     0.2872    0.0245    0.0452     17700
+   macro avg     0.4914    0.0249    0.0453     17700
+weighted avg     0.3664    0.0245    0.0446     17700
+
+=== Full 11-class ===
+                           precision    recall  f1-score   support
+
+                    clean     0.0000    0.0000    0.0000      8850
+                   jam_am     0.7500    0.0020    0.0041      2950
+                jam_chirp     0.7242    0.0725    0.1319      5900
+                  jam_dme     0.0000    0.0000    0.0000         0
+                   jam_fm     0.0000    0.0000    0.0000         0
+           jam_narrowband     0.0000    0.0000    0.0000         0
+            spoof_dynamic     0.0000    0.0000    0.0000         0
+       spoof_matched_time     0.0000    0.0000    0.0000         0
+spoof_overpowered_gradual     0.0000    0.0000    0.0000         0
+spoof_overpowered_instant     0.0000    0.0000    0.0000         0
+      spoof_position_push     0.0000    0.0000    0.0000         0
+
+                 accuracy                         0.0245     17700
+                macro avg     0.1340    0.0068    0.0124     17700
+             weighted avg     0.3664    0.0245    0.0446     17700
+

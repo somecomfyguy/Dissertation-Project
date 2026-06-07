@@ -49,13 +49,36 @@ from modules.dataset_module.process_texbat import scan_texbat_segments
 from modules.dataset_module.process_gateman import scan_gateman_segments
 
 # Paths
-OAKBAT_DATASET_PATH  = "./modules/dataset_module/datasets/OakbatSpoofing"
-SWINNEY_DATASET_PATH = "./modules/dataset_module/datasets/SwinneyJamming"
-# SPECTROGRAM_DIR      = "./Output/combined_spectrograms/"
-# SPECTROGRAM_DIR = "./Output/combined_spectrograms_perimage"  # for normalisation effect run
-SPECTROGRAM_DIR = "./Output/combined_spectrograms_mixed"    # for per-image norm + augmentation 
-# SPECTROGRAM_DIR = "./Output/combined_spectrograms_mixed"           # for per-image norm + augment + mixed domain
-OUTPUT_DIR           = "./Output/results_11classes_mixed"
+OAKBAT_DATASET_PATH  = os.path.abspath("F:/OakbatSpoofing")
+SWINNEY_DATASET_PATH = os.path.abspath("F:/SwinneyJamming")
+SPECTROGRAM_DIR      = "./Output/combined_spectrograms/"
+OUTPUT_DIR           = "./Output/results_11classes"
+
+
+# Adapt filter for mixing datasets
+def _load_adapt_filter(dataset_key: str,
+                       split_path: str = "./crossdataset_splits.json"):
+    """
+    Returns a predicate is_adapt(segment) -> bool using the split index.
+    A segment is ADAPT if start_sample <= threshold for its (scenario, label).
+    Every segment is either adapt or holdout, never both. Mixing only adapt 
+    segments into training guarantees the holdout evaluationset is never seen 
+    during training.
+    """
+    with open(split_path) as f:
+        index = json.load(f)
+    thresholds = index[dataset_key]
+
+    def is_adapt(seg) -> bool:
+        key = f"{seg.scenario}|{seg.label}"
+        thr = thresholds.get(key)
+        if thr is None:
+            print(f"  [WARN] No split threshold for '{key}', EXCLUDING "
+                  f"from mix (safer than leaking)")
+            return False
+        return seg.start_sample <= thr
+
+    return is_adapt
 
 
 # Prepare dataset
@@ -65,15 +88,19 @@ def prepare_datasets(oakbat_dir: str = OAKBAT_DATASET_PATH,
                      max_per_class: int = 1000,
                      norm_mode: str = "global",
                      texbat_dir: str = None,
-                     texbat_fraction: float = 0.1,
                      gateman_dir: str = None,
-                     gateman_fraction: float = 0.1,
+                     mix_fraction: float = 0.1,
                      gateman_jsr: float = 20.0):
     """
     Load raw IQ from datasets, segment, split, normalize, and save.
 
-    When texbat_dir or gateman_dir are provided, a fraction of their
-    segments are included in the training set for mixed-domain training.
+    When texbat_dir / gateman_dir are provided, a fraction of their
+    ADAPT-half segments (per crossdataset_splits.json) is mixed into the
+    training set. The HOLDOUT half is never touched here, so the eval
+    scripts evaluate on genuinely unseen data.
+
+    mix_fraction is expressed as a fraction of the FULL cross-dataset size
+    (e.g. 0.10 = 10% of all TEXBAT segments), drawn from the adapt pool.
     """
     stft_params = STFTParams()
     rng = np.random.default_rng(42)
@@ -98,32 +125,45 @@ def prepare_datasets(oakbat_dir: str = OAKBAT_DATASET_PATH,
     mixed_segments = []
 
     if texbat_dir is not None:
-        print(f"\n[Mixed] Including {texbat_fraction*100:.0f}% of TEXBAT...")
+        print(f"\n[Mix] TEXBAT: {mix_fraction*100:.0f}% of full set, "
+              f"drawn from adapt half...")
         texbat_all = scan_texbat_segments(texbat_dir)
-        n_include = int(len(texbat_all) * texbat_fraction)
-        idx = rng.permutation(len(texbat_all))[:n_include]
-        texbat_subset = [texbat_all[i] for i in idx]
-        mixed_segments.extend(texbat_subset)
-        print(f"  Added {len(texbat_subset)} TEXBAT segments")
+        is_adapt = _load_adapt_filter("texbat")
+        texbat_adapt = [s for s in texbat_all if is_adapt(s)]
+        # Fraction is of the FULL set, sampled from the adapt pool
+        n_include = int(len(texbat_all) * mix_fraction)
+        n_include = min(n_include, len(texbat_adapt))   # cap at adapt size
+        idx = rng.permutation(len(texbat_adapt))[:n_include]
+        chosen = [texbat_adapt[i] for i in idx]
+        mixed_segments.extend(chosen)
+        print(f"  adapt pool={len(texbat_adapt)}, "
+              f"mixed in={len(chosen)} ({len(chosen)/len(texbat_all)*100:.1f}% "
+              f"of full TEXBAT)")
 
     if gateman_dir is not None:
-        print(f"\n[Mixed] Including {gateman_fraction*100:.0f}% of GATEMAN "
-              f"at JSR={gateman_jsr} dB...")
+        print(f"\n[Mix] GATEMAN: {mix_fraction*100:.0f}% of full set, "
+              f"drawn from adapt half, JSR={gateman_jsr}...")
         gateman_all = scan_gateman_segments(gateman_dir, jsr_db=gateman_jsr)
-        n_include = int(len(gateman_all) * gateman_fraction)
-        idx = rng.permutation(len(gateman_all))[:n_include]
-        gateman_subset = [gateman_all[i] for i in idx]
-        mixed_segments.extend(gateman_subset)
-        print(f"  Added {len(gateman_subset)} GATEMAN segments")
+        is_adapt = _load_adapt_filter("gateman")
+        gateman_adapt = [s for s in gateman_all if is_adapt(s)]
+        n_include = int(len(gateman_all) * mix_fraction)
+        n_include = min(n_include, len(gateman_adapt))
+        idx = rng.permutation(len(gateman_adapt))[:n_include]
+        chosen = [gateman_adapt[i] for i in idx]
+        mixed_segments.extend(chosen)
+        print(f"  adapt pool={len(gateman_adapt)}, "
+              f"mixed in={len(chosen)} "
+              f"({len(chosen)/len(gateman_all)*100:.1f}% of full GATEMAN)")
 
     # ── Step 4: Combine and split ─────────────────────────────────
     combined = oakbat_segments + swinney_segments + mixed_segments
+    print(f"\nCombined training pool: {len(combined)} segments "
+          f"({len(mixed_segments)} mixed-in)")
     splits = create_splits(combined, balance_classes=True,
                            max_per_class=max_per_class)
 
     # ── Step 5: Normalisation ─────────────────────────────────────
     os.makedirs(output_dir, exist_ok=True)
-
     if norm_mode == "global":
         spec_normalizer = compute_joint_normalization(
             [s for s in splits["train"] if s.dataset == "oakbat"],
@@ -133,14 +173,12 @@ def prepare_datasets(oakbat_dir: str = OAKBAT_DATASET_PATH,
         )
     else:
         spec_normalizer = None
-        print("[Norm] Using per-image min-max normalisation (no global stats)")
+        print("[Norm] Per-image min-max (no global stats)")
 
     # ── Step 6: Feature normalization ─────────────────────────────
     feat_normalizer = compute_feature_normalization(
-        splits["train"],
-        fs=SAMPLE_RATE,
-        output_path=os.path.join(output_dir, "feature_norm_stats.json"),
-    )
+        splits["train"], fs=SAMPLE_RATE,
+        output_path=os.path.join(output_dir, "feature_norm_stats.json"))
 
     # ── Step 7: Save spectrograms + features ──────────────────────
     save_dataset_streaming(splits, output_dir, SAMPLE_RATE,
@@ -388,22 +426,25 @@ def main():
                         help="Fraction of cross-dataset to include (default 10%%)")
     args = parser.parse_args()
 
+    # Fraction-specific directories so sweep points don't collide.
+    pct = int(round(args.mix_fraction * 100))
+    spec_dir   = f"./Output/combined_spectrograms_mix{pct}"
+    output_base = f"./Output/results_mix{pct}"
+
     if not args.skip_prepare:
         prepare_datasets(
+            output_dir=spec_dir,
             norm_mode=args.norm_mode,
             texbat_dir=args.mix_texbat,
-            texbat_fraction=args.mix_fraction,
             gateman_dir=args.mix_gateman,
-            gateman_fraction=args.mix_fraction,
+            mix_fraction=args.mix_fraction,
         )
-
     if not args.prepare_only:
-        if args.fusion:
-            output_dir = os.path.join(OUTPUT_DIR, f"fusion_{args.backbone}")
-        else:
-            output_dir = os.path.join(OUTPUT_DIR, args.model)
+        subdir = f"fusion_{args.backbone}" if args.fusion else args.model
         run_training(model_name=args.model, fusion=args.fusion,
-                     backbone_name=args.backbone, output_dir=output_dir,
+                     backbone_name=args.backbone,
+                     data_dir=spec_dir,
+                     output_dir=os.path.join(output_base, subdir),
                      augment=args.augment,
                      epochs=args.epochs, batch_size=args.batch_size,
                      lr=args.lr, device_str=args.device)

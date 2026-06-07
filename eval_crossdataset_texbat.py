@@ -64,16 +64,40 @@ from modules.nn_module.fusion_model import build_fusion_model
 
 # Paths
 TEXBAT_DATASET_PATH = "./modules/dataset_module/datasets/TexbatSpoofing"
-TRAINED_NORM_DIR    = "./Output/combined_spectrograms_mixed"
-TEXBAT_SPEC_DIR     = "./Output/texbat_spectrograms_perimage"
-TRAINED_MODEL_BASE  = "./Output/results_11classes_mixed"
-RESULTS_BASE_DIR    = "./Output/texbat_eval_results_mixed"
+TRAINED_NORM_DIR    = "./Output/combined_spectrograms"
+TEXBAT_SPEC_DIR     = "./Output/texbat_spectrograms_holdout"
+TRAINED_MODEL_BASE  = "./Output/results_11classes_regularized_fusion"
+RESULTS_BASE_DIR    = "./Output/texbat_eval_results_holdout"
 
 
-def prepare_texbat(texbat_dir:       str = TEXBAT_DATASET_PATH,
+def _load_holdout_filter(dataset_key: str,
+                         split_path: str = "./crossdataset_splits.json"):
+    """
+    Returns a predicate is_holdout(segment) -> bool using the split index.
+    A segment is HOLDOUT if start_sample > threshold for its (scenario, label).
+    Holdout segments were never eligible for training, so evaluating on them
+    only is leakage-free.
+    """
+    with open(split_path) as f:
+        index = json.load(f)
+    thresholds = index[dataset_key]
+
+    def is_holdout(seg) -> bool:
+        key = f"{seg.scenario}|{seg.label}"
+        thr = thresholds.get(key)
+        if thr is None:
+            print(f"  [WARN] No split threshold for '{key}', keeping segment")
+            return True
+        return seg.start_sample > thr
+
+    return is_holdout
+
+
+def prepare_texbat(texbat_dir: str = TEXBAT_DATASET_PATH,
                    trained_norm_dir: str = TRAINED_NORM_DIR,
-                   output_dir:       str = TEXBAT_SPEC_DIR,
-                   max_per_class:    int = None) -> None:
+                   output_dir: str = TEXBAT_SPEC_DIR,
+                   norm_mode: str = "global",
+                   max_per_class: int = None,) -> None:
     """
     Build TEXBAT test-set spectrograms + features on disk using the SAVED
     training normalisers. No train/val/test split — TEXBAT is a zero-shot
@@ -92,6 +116,10 @@ def prepare_texbat(texbat_dir:       str = TEXBAT_DATASET_PATH,
 
     print(f"\n[Prep] Scanning TEXBAT...")
     segments = scan_texbat_segments(texbat_dir)
+    is_holdout = _load_holdout_filter("texbat")
+    before = len(segments)
+    segments = [s for s in segments if is_holdout(s)]
+    print(f"[Prep] Holdout filter: {before} -> {len(segments)} segments")
 
     # Optional subsampling for development
     if max_per_class is not None:
@@ -115,7 +143,11 @@ def prepare_texbat(texbat_dir:       str = TEXBAT_DATASET_PATH,
     for i, meta in enumerate(segments):
         iq   = read_segment_iq(meta)
         spec = compute_spectrogram(iq, SAMPLE_RATE, stft_params)
-        spec = spec_normalizer.transform(spec)
+        if norm_mode == "perimage":
+            lo, hi = spec.min(), spec.max()
+            spec = ((spec - lo) / (hi - lo + 1e-10)).astype(np.float32)
+        else:
+            spec = spec_normalizer.transform(spec)
         feat = compute_features(iq, SAMPLE_RATE)
         feat = feat_normalizer.transform(feat)
 
@@ -161,15 +193,17 @@ def _build_model(args, num_classes: int) -> nn.Module:
                                 freeze_backbone=False)
 
 
-def run_texbat_inference(args) -> dict:
+def run_texbat_inference(args, spec_dir: str) -> dict:
     """
     Load a trained checkpoint, run inference over TEXBAT spectrograms,
     produce classification report + confusion matrix + predictions.npz.
     """
     subdir = f"fusion_{args.backbone}" if args.fusion else args.model
 
-    checkpoint_path = os.path.join(TRAINED_MODEL_BASE, subdir, "best_model.pth")
-    output_dir      = os.path.join(RESULTS_BASE_DIR, subdir)
+    checkpoint_path = os.path.join(args.trained_base, subdir, "best_model.pth")
+    suffix = "_perimage" if args.norm_mode == "perimage" else ""
+    mix_tag = os.path.basename(args.trained_base.rstrip("/"))
+    output_dir = os.path.join(RESULTS_BASE_DIR + suffix + "_" + mix_tag, subdir)
     os.makedirs(output_dir, exist_ok=True)
 
     if args.device == "auto":
@@ -195,8 +229,8 @@ def run_texbat_inference(args) -> dict:
     # Build TEXBAT dataset using the TRAINING class_to_idx so jamming
     # indices (0..10) map consistently even though only 6 classes have
     # directories on disk.
-    print(f"\nLoading TEXBAT spectrograms from {TEXBAT_SPEC_DIR}")
-    test_dataset = SpectrogramDataset(TEXBAT_SPEC_DIR,
+    print(f"\nLoading TEXBAT spectrograms from {spec_dir}")
+    test_dataset = SpectrogramDataset(spec_dir,
                                       class_to_idx=class_to_idx,
                                       load_features=args.fusion)
     test_loader = DataLoader(test_dataset,
@@ -216,6 +250,13 @@ def run_texbat_inference(args) -> dict:
     print(f"{'='*60}")
     print(f"  Accuracy: {test_acc:.4f}")
     print(f"  Loss:     {test_loss:.4f}")
+    # Majority-class baseline — a result must beat this to mean anything
+    unique, counts = np.unique(labels, return_counts=True)
+    majority_frac = counts.max() / counts.sum()
+    majority_class = idx_to_class[unique[counts.argmax()]]
+    print(f"  Majority baseline: {majority_frac:.4f} "
+          f"(always predict '{majority_class}')")
+    print(f"  Beats baseline:    {'YES' if test_acc > majority_frac else 'NO'}")
 
     # TEXBAT-only report (6 classes actually present)
     present_ids   = sorted(set(labels))
@@ -260,6 +301,9 @@ def run_texbat_inference(args) -> dict:
         "test_loss":              float(test_loss),
         "num_samples":            len(test_dataset),
         "texbat_classes_present": present_names,
+        "majority_baseline":      float(majority_frac),
+        "majority_class":         majority_class,
+        "beats_baseline":         bool(test_acc > majority_frac),
     }
     with open(os.path.join(output_dir, "results.json"), "w") as f:
         json.dump(results, f, indent=2)
@@ -285,16 +329,30 @@ def main():
     parser.add_argument("--batch-size",  type=int, default=32)
     parser.add_argument("--num-workers", type=int, default=2)
     parser.add_argument("--device",      type=str, default="auto")
+    parser.add_argument("--norm-mode", type=str, default="global",
+                        choices=["global", "perimage"],
+                        help="Spectrogram normalisation: global (saved stats) "
+                        "or perimage (min-max per spectrogram)")
     parser.add_argument("--max-per-class", type=int, default=None,
                         help="Subsample to this many segments per class "
                              "during prepare (for dev/testing)")
+    parser.add_argument("--trained-base", type=str, default=TRAINED_MODEL_BASE,
+                        help="Directory holding trained checkpoints "
+                             "(e.g. ./Output/results_mix10)")
+    parser.add_argument("--norm-dir", type=str, default=TRAINED_NORM_DIR,
+                        help="Directory holding saved normaliser stats "
+                             "(e.g. ./Output/combined_spectrograms_mix10)")
     args = parser.parse_args()
 
+    spec_dir = TEXBAT_SPEC_DIR + ("_perimage" if args.norm_mode == "perimage" else "")
     if not args.skip_prepare:
-        prepare_texbat(max_per_class=args.max_per_class)
+        prepare_texbat(trained_norm_dir=args.norm_dir,
+                       output_dir=spec_dir,
+                       norm_mode=args.norm_mode,
+                       max_per_class=args.max_per_class)
 
     if not args.prepare_only:
-        run_texbat_inference(args)
+        run_texbat_inference(args, spec_dir)
 
 
 if __name__ == "__main__":

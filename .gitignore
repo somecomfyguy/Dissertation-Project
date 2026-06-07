@@ -15,6 +15,12 @@ Output/gateman_spectrograms_perimage/
 Output/texbat_spectrograms/
 Output/texbat_spectrograms_perimage/
 Output/combined_spectrograms_mixed
+Output/old
 venv/
 jetson/__pycache__
 jetson/_temp_matlab_R2025b_Windows
+Output/gateman_spectrograms_holdout
+Output/texbat_spectrograms_holdout
+Output/texbat_spectrograms_holdout_perimage
+Output/gateman_spectrograms_holdout_perimage
+Output/combined_spectrograms_mix5
