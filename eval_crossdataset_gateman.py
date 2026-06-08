@@ -49,7 +49,7 @@ from modules.nn_module.fusion_model import build_fusion_model
 GATEMAN_DATASET_PATH = "./modules/dataset_module/datasets/GatemanJamming"
 TRAINED_NORM_DIR     = "./Output/combined_spectrograms"
 GATEMAN_SPEC_BASE    = "./Output/gateman_spectrograms_holdout"
-TRAINED_MODEL_BASE   = "./Output/results_11classes_regularized_fusion"
+TRAINED_MODEL_BASE   = "./Output/results_11classes_regularized_"
 RESULTS_BASE_DIR     = "./Output/gateman_eval_results_holdout"
 
 

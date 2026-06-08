@@ -1,0 +1,15 @@
+{
+  "model": "fusion_custom_cnn",
+  "jsr_db": 20.0,
+  "test_accuracy": 0.6562146892655367,
+  "test_loss": 1.9784876391308457,
+  "num_samples": 17700,
+  "classes_present": [
+    "clean",
+    "jam_am",
+    "jam_chirp"
+  ],
+  "majority_baseline": 0.5,
+  "majority_class": "clean",
+  "beats_baseline": true
+}
