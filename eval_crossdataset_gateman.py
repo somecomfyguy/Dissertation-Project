@@ -47,17 +47,41 @@ from modules.nn_module.fusion_model import build_fusion_model
 
 # Paths
 GATEMAN_DATASET_PATH = "./modules/dataset_module/datasets/GatemanJamming"
-TRAINED_NORM_DIR     = "./Output/combined_spectrograms_mixed"
-GATEMAN_SPEC_BASE    = "./Output/gateman_spectrograms_perimage"
-TRAINED_MODEL_BASE   = "./Output/results_11classes_mixed"
-RESULTS_BASE_DIR     = "./Output/gateman_eval_results_mixed"
+TRAINED_NORM_DIR     = "./Output/combined_spectrograms"
+GATEMAN_SPEC_BASE    = "./Output/gateman_spectrograms_holdout"
+TRAINED_MODEL_BASE   = "./Output/results_11classes_regularized_"
+RESULTS_BASE_DIR     = "./Output/gateman_eval_results_holdout"
+
+
+def _load_holdout_filter(dataset_key: str,
+                         split_path: str = "./crossdataset_splits.json"):
+    """
+    Returns a predicate is_holdout(segment) -> bool using the split index.
+    A segment is HOLDOUT if start_sample > threshold for its (scenario, label).
+    Holdout segments were never eligible for training, so evaluating on them
+    only is leakage-free.
+    """
+    with open(split_path) as f:
+        index = json.load(f)
+    thresholds = index[dataset_key]
+
+    def is_holdout(seg) -> bool:
+        key = f"{seg.scenario}|{seg.label}"
+        thr = thresholds.get(key)
+        if thr is None:
+            print(f"  [WARN] No split threshold for '{key}', keeping segment")
+            return True
+        return seg.start_sample > thr
+
+    return is_holdout
 
 
 def prepare_gateman(jsr_db: float,
                     gateman_dir: str = GATEMAN_DATASET_PATH,
                     trained_norm_dir: str = TRAINED_NORM_DIR,
                     output_base: str = GATEMAN_SPEC_BASE,
-                    max_per_class: int = None) -> str:
+                    norm_mode: str = "global",
+                    max_per_class: int = None,) -> str:
     """
     Prepare GATEMAN spectrograms at a specific JSR using saved normalisers.
     Returns the output directory path.
@@ -65,13 +89,17 @@ def prepare_gateman(jsr_db: float,
     output_dir = os.path.join(output_base, f"jsr_{int(jsr_db)}dB")
     stft_params = STFTParams()
 
-    spec_norm = SpectrogramNormalizer.load(
+    spec_normalizer = SpectrogramNormalizer.load(
         os.path.join(trained_norm_dir, "normalization_stats.json"))
     feat_norm = FeatureNormalizer.load(
         os.path.join(trained_norm_dir, "feature_norm_stats.json"))
 
     print(f"\n[Prep] Scanning GATEMAN at JSR={jsr_db} dB...")
     segments = scan_gateman_segments(gateman_dir, jsr_db=jsr_db)
+    is_holdout = _load_holdout_filter("gateman")
+    before = len(segments)
+    segments = [s for s in segments if is_holdout(s)]
+    print(f"[Prep] Holdout filter: {before} -> {len(segments)} segments")
 
     if max_per_class is not None:
         rng = np.random.default_rng(42)
@@ -93,7 +121,12 @@ def prepare_gateman(jsr_db: float,
     for i, meta in enumerate(segments):
         iq   = read_segment_iq(meta)
         spec = compute_spectrogram(iq, SAMPLE_RATE, stft_params)
-        spec = spec_norm.transform(spec)
+        spec = spec_normalizer.transform(spec)
+        if norm_mode == "perimage":
+            lo, hi = spec.min(), spec.max()
+            spec = ((spec - lo) / (hi - lo + 1e-10)).astype(np.float32)
+        else:
+            spec = spec_normalizer.transform(spec)
         feat = compute_features(iq, SAMPLE_RATE)
         feat = feat_norm.transform(feat)
 
@@ -139,14 +172,17 @@ def _build_model(args, num_classes):
 def run_gateman_inference(args, jsr_db: float, spec_dir: str) -> dict:
     """Run inference on GATEMAN spectrograms at a specific JSR."""
     subdir = f"fusion_{args.backbone}" if args.fusion else args.model
-    output_dir = os.path.join(RESULTS_BASE_DIR, subdir, f"jsr_{int(jsr_db)}dB")
+    suffix = "_perimage" if args.norm_mode == "perimage" else ""
+    mix_tag = os.path.basename(args.trained_base.rstrip("/"))
+    output_dir = os.path.join(RESULTS_BASE_DIR + suffix + "_" + mix_tag, subdir,
+                              f"jsr_{int(jsr_db)}dB")
     os.makedirs(output_dir, exist_ok=True)
 
     device = torch.device("cuda" if torch.cuda.is_available()
                           else "cpu") if args.device == "auto" \
              else torch.device(args.device)
 
-    checkpoint_path = os.path.join(TRAINED_MODEL_BASE, subdir, "best_model.pth")
+    checkpoint_path = os.path.join(args.trained_base, subdir, "best_model.pth")
     print(f"\nLoading checkpoint: {checkpoint_path}")
     ckpt = torch.load(checkpoint_path, map_location=device, weights_only=False)
     class_to_idx = ckpt["class_to_idx"]
@@ -177,6 +213,12 @@ def run_gateman_inference(args, jsr_db: float, spec_dir: str) -> dict:
     print(f"{'='*60}")
     print(f"  Accuracy: {test_acc:.4f}")
     print(f"  Loss:     {test_loss:.4f}")
+    unique, counts = np.unique(labels, return_counts=True)
+    majority_frac = counts.max() / counts.sum()
+    majority_class = idx_to_class[unique[counts.argmax()]]
+    print(f"  Majority baseline: {majority_frac:.4f} "
+          f"(always predict '{majority_class}')")
+    print(f"  Beats baseline:    {'YES' if test_acc > majority_frac else 'NO'}")
 
     report = classification_report(
         labels, preds, labels=present_ids,
@@ -207,6 +249,9 @@ def run_gateman_inference(args, jsr_db: float, spec_dir: str) -> dict:
         "test_accuracy": float(test_acc), "test_loss": float(test_loss),
         "num_samples": len(test_dataset),
         "classes_present": present_names,
+        "majority_baseline": float(majority_frac),
+        "majority_class":    majority_class,
+        "beats_baseline":    bool(test_acc > majority_frac),
     }
     with open(os.path.join(output_dir, "results.json"), "w") as f:
         json.dump(results, f, indent=2)
@@ -232,14 +277,26 @@ def main():
     parser.add_argument("--batch-size", type=int, default=32)
     parser.add_argument("--num-workers", type=int, default=2)
     parser.add_argument("--device", type=str, default="auto")
+    parser.add_argument("--norm-mode", type=str, default="global",
+                        choices=["global", "perimage"])
     parser.add_argument("--max-per-class", type=int, default=None)
+    parser.add_argument("--trained-base", type=str, default=TRAINED_MODEL_BASE,
+                        help="Directory holding trained checkpoints")
+    parser.add_argument("--norm-dir", type=str, default=TRAINED_NORM_DIR,
+                        help="Directory holding saved normaliser stats")
     args = parser.parse_args()
+
+    spec_base = GATEMAN_SPEC_BASE + ("_perimage" 
+                                     if args.norm_mode == "perimage" else "")
 
     all_results = []
 
     for jsr in args.jsr:
         if not args.skip_prepare:
             spec_dir = prepare_gateman(jsr_db=jsr,
+                                       trained_norm_dir=args.norm_dir,
+                                       output_base=spec_base,
+                                       norm_mode=args.norm_mode,
                                        max_per_class=args.max_per_class)
         else:
             spec_dir = os.path.join(GATEMAN_SPEC_BASE, f"jsr_{int(jsr)}dB")

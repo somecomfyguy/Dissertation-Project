@@ -1,0 +1,35 @@
+{
+  "split_ratio": 0.5,
+  "generalisation_level": "window-level (within-recording)",
+  "rule": "segment is ADAPT if start_sample <= threshold else HOLDOUT",
+  "texbat": {
+    "cleanStatic|clean": 1200300000,
+    "cleanDynamic|clean": 1107100000,
+    "ds1|clean": 312400000,
+    "ds1|spoof_overpowered_instant": 1466600000,
+    "ds2|clean": 275100000,
+    "ds2|spoof_overpowered_gradual": 1418000000,
+    "ds3|clean": 297100000,
+    "ds3|spoof_matched_time": 1441700000,
+    "ds4|clean": 284400000,
+    "ds4|spoof_dynamic": 1429800000,
+    "ds5|clean": 299900000,
+    "ds5|spoof_position_push": 1345500000,
+    "ds6|clean": 299900000,
+    "ds6|spoof_dynamic": 1345500000
+  },
+  "gateman": {
+    "GPSL1+AMtone|modules\\dataset_module\\datasets\\GatemanJamming\\GPSL1+AMtone\\AMtone@20MSps-16bit.bin|jsr=20.0|jam_am": 147300000,
+    "GPSL1+AMtone|clean|jsr=none|clean": 147300000,
+    "GPSL1+Chirp10MHz|modules\\dataset_module\\datasets\\GatemanJamming\\GPSL1+Chirp10MHz\\Chirp10MHz@20MSps-16bit.bin|jsr=20.0|jam_chirp": 147300000,
+    "GPSL1+Chirp10MHz|clean|jsr=none|clean": 147300000,
+    "GPSL1+Chirp20MHz|modules\\dataset_module\\datasets\\GatemanJamming\\GPSL1+Chirp20MHz\\Chirp20MHz@20MSps-16bit.bin|jsr=20.0|jam_chirp": 147300000,
+    "GPSL1+Chirp20MHz|clean|jsr=none|clean": 147300000,
+    "GALE1+AMtone|modules\\dataset_module\\datasets\\GatemanJamming\\GALE1+AMtone\\AMtone@20MSps-16bit.bin|jsr=20.0|jam_am": 147300000,
+    "GALE1+AMtone|clean|jsr=none|clean": 147300000,
+    "GALE1+Chirp10MHz|modules\\dataset_module\\datasets\\GatemanJamming\\GALE1+Chirp10MHz\\Chirp10MHz@20MSps-16bit.bin|jsr=20.0|jam_chirp": 147300000,
+    "GALE1+Chirp10MHz|clean|jsr=none|clean": 147300000,
+    "GALE1+Chirp20MHz|modules\\dataset_module\\datasets\\GatemanJamming\\GALE1+Chirp20MHz\\Chirp20MHz@20MSps-16bit.bin|jsr=20.0|jam_chirp": 147300000,
+    "GALE1+Chirp20MHz|clean|jsr=none|clean": 147300000
+  }
+}

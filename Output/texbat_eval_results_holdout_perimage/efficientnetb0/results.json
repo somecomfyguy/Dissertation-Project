@@ -1,0 +1,17 @@
+{
+  "model": "efficientnetb0",
+  "test_accuracy": 0.797905724205466,
+  "test_loss": 0.97330756603658,
+  "num_samples": 89864,
+  "texbat_classes_present": [
+    "clean",
+    "spoof_dynamic",
+    "spoof_matched_time",
+    "spoof_overpowered_gradual",
+    "spoof_overpowered_instant",
+    "spoof_position_push"
+  ],
+  "majority_baseline": 0.45371895308466126,
+  "majority_class": "clean",
+  "beats_baseline": true
+}

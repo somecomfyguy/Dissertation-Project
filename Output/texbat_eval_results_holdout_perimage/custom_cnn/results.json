@@ -1,0 +1,17 @@
+{
+  "model": "custom_cnn",
+  "test_accuracy": 0.10723982907504674,
+  "test_loss": 2.4024736284413724,
+  "num_samples": 89864,
+  "texbat_classes_present": [
+    "clean",
+    "spoof_dynamic",
+    "spoof_matched_time",
+    "spoof_overpowered_gradual",
+    "spoof_overpowered_instant",
+    "spoof_position_push"
+  ],
+  "majority_baseline": 0.45371895308466126,
+  "majority_class": "clean",
+  "beats_baseline": false
+}
